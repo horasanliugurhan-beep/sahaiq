@@ -4,7 +4,9 @@
 
 SahaIQ turns sales data into customer segments, risk signals and explainable next-best actions.
 
-Built by **Uğurhan Horasanlı** as a reusable, vendor-neutral public edition of a field-sales intelligence concept.
+Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence toolkit that works with any sales data source.
+
+🌐 [sahaiq.app](https://sahaiq.app)
 
 ## What works today
 
@@ -14,10 +16,9 @@ Built by **Uğurhan Horasanlı** as a reusable, vendor-neutral public edition of
 - Synthetic demo dashboard
 - CSV import and configurable field mapping
 - Normalized customer/sales schema
-- Server-side Qlik Cloud REST connection test
-- Qlik app metadata adapter
-- QIX JSON-RPC / hypercube extraction foundation
-- Automated core/import/Qlik/QIX tests
+- Connector foundation for external data sources
+- Reference BI connector: Qlik Cloud (REST + QIX engine)
+- Automated core, import and connector tests
 - Secret-safe environment template
 
 ## Run locally
@@ -36,11 +37,14 @@ Required: `customer_id`, `customer_name`, `date`, `quantity`
 
 Optional: `revenue`, `product`, `brand`, `region`
 
-## Qlik Cloud
+## Data connectors
 
-SahaIQ keeps Qlik credentials server-side. Configure runtime values in `.env.local` using `.env.example`. See `docs/QLIK.md` and `docs/QLIK-MAPPING.md`.
+SahaIQ is source-agnostic: every connector maps its fields into the same vendor-neutral schema, so the CRM is not tied to any single company, database or BI tool.
 
-Qlik-specific fields are mapped into SahaIQ's vendor-neutral schema, so the CRM is not tied to one company or app.
+- **CSV** – built-in import with configurable field mapping (works with Excel or ERP exports)
+- **BI tools / REST APIs** – Qlik Cloud is included as a reference connector (`docs/QLIK.md`, `docs/QLIK-MAPPING.md`); the same mapping pattern can be extended to other BI platforms and REST data sources
+
+Connector credentials always stay server-side. Configure runtime values in `.env.local` using `.env.example`.
 
 ## Privacy & security
 

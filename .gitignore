@@ -20,3 +20,5 @@ data/backups/
 test-results/
 playwright-report/
 .DS_Store
+# Generated from tested sources; contains code, not customer data.
+public/pilot.html

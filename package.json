@@ -1,1 +1,22 @@
-{"name":"sahaiq","version":"0.1.0","private":false,"type":"module","scripts":{"dev":"next dev","build":"next build","start":"next start","test":"node --test test/*.test.mjs"},"dependencies":{"next":"16.2.4","react":"19.2.4","react-dom":"19.2.4"},"devDependencies":{}}
+{
+  "name": "sahaiq",
+  "version": "0.2.0",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test test/*.test.mjs",
+    "pilot:build": "node scripts/build-pilot.mjs",
+    "predev": "node scripts/build-pilot.mjs",
+    "prebuild": "node scripts/build-pilot.mjs",
+    "pretest": "node scripts/build-pilot.mjs"
+  },
+  "dependencies": {
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {}
+}

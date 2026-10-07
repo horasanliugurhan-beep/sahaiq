@@ -13,8 +13,9 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
 - RFM customer scoring and segmentation
 - Explainable rule-based action engine
 - Sales decline and follow-up signals
-- Synthetic demo dashboard
-- CSV import and configurable field mapping
+- Live in-browser demo: 40 synthetic accounts, 12 months of history
+- Prioritised "who to call today" list with the reason for every recommendation
+- CSV import (comma or semicolon, Turkish number/date formats, ERP header auto-mapping); files never leave the browser
 - Normalized customer/sales schema
 - Connector foundation for external data sources
 - Reference BI connector: Qlik Cloud (REST + QIX engine)
@@ -29,7 +30,15 @@ npm test
 npm run dev
 ~~~
 
-Open the local Next.js URL, then use **Import** for your own CSV data.
+Open the local Next.js URL, then use **Kendi CSV'nizi yükleyin** for your own data.
+
+Static demo build (no server needed, output in `out/`):
+
+```
+npm run build:static
+```
+
+Pushes to `main` deploy the static demo to GitHub Pages via `.github/workflows/pages.yml`.
 
 ## Data model
 

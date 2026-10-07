@@ -17,6 +17,7 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
 - Prioritised "who to call today" list with the reason for every recommendation
 - CSV import (comma or semicolon, Turkish number/date formats, ERP header auto-mapping); files never leave the browser
 - Normalized customer/sales schema
+- Fail-closed data checks (from the observer pilot): bad dates/numbers, one code with two names, broken CSV structure stop the analysis and are listed by line number; duplicates, blank amounts and returns are flagged, never silently changed; money is summed in kuruş; stale exports are labelled with their own date
 - Connector foundation for external data sources
 - Reference BI connector: Qlik Cloud (REST + QIX engine)
 - Automated core, import and connector tests
@@ -54,6 +55,8 @@ SahaIQ is source-agnostic: every connector maps its fields into the same vendor-
 - **BI tools / REST APIs** – Qlik Cloud is included as a reference connector (`docs/QLIK.md`, `docs/QLIK-MAPPING.md`); the same mapping pattern can be extended to other BI platforms and REST data sources
 
 Connector credentials always stay server-side. Configure runtime values in `.env.local` using `.env.example`.
+
+The `/api/qlik` status endpoint is **off by default**. It only runs when `SAHAIQ_ENABLE_QLIK_CHECK=true` and a request carries `Authorization: Bearer <SAHAIQ_STATUS_TOKEN>` (at least 32 random characters). Only `*.qlikcloud.com` HTTPS tenants are accepted, and a success means "authentication and app metadata reachable" — it never verifies business data or permissions. The public static demo does not include this endpoint.
 
 ## Privacy & security
 

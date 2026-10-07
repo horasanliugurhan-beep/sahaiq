@@ -3,11 +3,12 @@
 import { useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
 import { generateSampleRows } from "../lib/sample-data.js";
-import { parseCsv, toCsv } from "../lib/import/csv.js";
-import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, autoMap, normalizeRow, validateMapping } from "../lib/import/schema.js";
+import { parseTable, toCsv, MAX_IMPORT_CHARS } from "../lib/import/csv.js";
+import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, LOCALES, autoMap, guessLocale, validateDataset, validateMapping } from "../lib/import/schema.js";
 
 const SAMPLE_ROWS = generateSampleRows();
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = MAX_IMPORT_CHARS;
+const DAY_MS = 86400000;
 
 const PRIORITY_LABEL = { 3: "Yüksek öncelik", 2: "Orta öncelik", 1: "Düşük öncelik" };
 
@@ -55,8 +56,8 @@ function download(name, text) {
 }
 
 export default function Dashboard() {
-  const [source, setSource] = useState({ kind: "demo", name: "Kurgusal demo verisi", rows: SAMPLE_ROWS, skipped: 0 });
-  const [pending, setPending] = useState(null); // uploaded file waiting for column mapping
+  const [source, setSource] = useState({ kind: "demo", name: "Kurgusal demo verisi", rows: SAMPLE_ROWS, warnings: [] });
+  const [pending, setPending] = useState(null); // uploaded file waiting for mapping or fixes
   const [error, setError] = useState("");
   const [segment, setSegment] = useState(null);
   const [query, setQuery] = useState("");
@@ -67,14 +68,19 @@ export default function Dashboard() {
   const result = useMemo(() => analyze(source.rows), [source]);
   const unit = result.basis === "revenue" ? fmtMoney : (n) => `${fmtInt(n)} adet`;
 
-  function applyRows(raw, map, name) {
-    const normalized = raw.map((r) => normalizeRow(r, map));
-    const rows = normalized.filter(Boolean);
-    if (!rows.length) {
-      setError("Dosyada geçerli satır bulunamadı. Tarih, müşteri kodu, müşteri adı ve adet sütunlarını kontrol edin.");
+  // Validate the whole file; any error blocks the analysis and is shown with its line number.
+  function tryApply(p) {
+    const check = validateDataset(p.table, p.map, { locale: p.locale });
+    if (check.errors.length) {
+      setPending({ ...p, check });
       return;
     }
-    setSource({ kind: "upload", name, rows, skipped: raw.length - rows.length });
+    // Analysing an old export is fine, but it must never look like today's state.
+    const latest = check.rows.reduce((m, r) => (r.date > m ? r.date : m), check.rows[0].date);
+    const ageDays = Math.floor((Date.now() - Date.parse(latest + "T00:00:00Z")) / DAY_MS);
+    const warnings = [...check.warnings];
+    if (ageDays > 14) warnings.unshift({ row: 0, field: "asOf", message: `Dosyadaki en son kayıt ${fmtDate(latest)} (${fmtInt(ageDays)} gün önce). Sonuçlar bugünü değil, o tarihi gösterir.` });
+    setSource({ kind: "upload", name: p.name, rows: check.rows, warnings, locale: p.locale });
     setPending(null);
     setError("");
     setSegment(null);
@@ -87,27 +93,31 @@ export default function Dashboard() {
     e.target.value = "";
     if (!file) return;
     setError("");
+    setPending(null);
     if (file.size > MAX_FILE_BYTES) {
-      setError("Dosya 25 MB'tan büyük. Daha kısa bir dönem seçip tekrar deneyin.");
+      setError("Dosya 5 MB sınırını aşıyor. Daha kısa bir dönem seçip tekrar deneyin.");
       return;
     }
-    if (!/\.(csv|txt)$/i.test(file.name)) {
-      setError("Şimdilik CSV dosyası destekleniyor. Excel'de 'Farklı kaydet → CSV' ile dışa aktarabilirsiniz.");
+    if (!/\.(csv|txt|tsv)$/i.test(file.name)) {
+      setError("Şimdilik CSV dosyası destekleniyor. Excel'de 'Farklı kaydet → CSV UTF-8' ile dışa aktarabilirsiniz.");
       return;
     }
+    let table;
     try {
-      const raw = parseCsv(await file.text());
-      if (!raw.length) {
-        setError("Dosya boş görünüyor.");
-        return;
-      }
-      const headers = Object.keys(raw[0]);
-      const map = autoMap(headers);
-      if (validateMapping(map).length) setPending({ raw, headers, map, name: file.name });
-      else applyRows(raw, map, file.name);
+      table = parseTable(await file.text());
     } catch (err) {
-      setError("Dosya okunamadı: " + err.message);
+      setError("Dosya okunamadı. " + err.message);
+      return;
     }
+    if (!table.rows.length) {
+      setError("Dosyada veri satırı yok.");
+      return;
+    }
+    const map = autoMap(table.headers);
+    const sample = table.rows.slice(0, 500).flatMap((r) => [map.quantity, map.revenue].filter(Boolean).map((h) => r[h]));
+    const p = { table, map, locale: guessLocale(sample), name: file.name };
+    if (validateMapping(map).length) setPending({ ...p, check: null });
+    else tryApply(p);
   }
 
   const callList = result.callList;
@@ -157,7 +167,7 @@ export default function Dashboard() {
         <div className="meta">
           <b>{source.kind === "demo" ? "Kurgusal demo verisi" : source.name}</b> · {fmtInt(result.kpis.accounts)} müşteri · {fmtInt(result.rowCount)} satır · analiz tarihi{" "}
           {fmtDate(result.asOf)}
-          {source.skipped > 0 && <> · {fmtInt(source.skipped)} satır atlandı (eksik/geçersiz)</>}
+          {source.locale && <> · sayı biçimi {LOCALES[source.locale]}</>}
         </div>
         <div className="actions-row">
           <button className="btn primary" onClick={() => fileRef.current?.click()}>
@@ -165,7 +175,7 @@ export default function Dashboard() {
           </button>
           <input ref={fileRef} className="hidden-input" type="file" accept=".csv,.txt,text/csv" onChange={onFile} />
           {source.kind === "upload" ? (
-            <button className="btn" onClick={() => setSource({ kind: "demo", name: "Kurgusal demo verisi", rows: SAMPLE_ROWS, skipped: 0 })}>
+            <button className="btn" onClick={() => setSource({ kind: "demo", name: "Kurgusal demo verisi", rows: SAMPLE_ROWS, warnings: [] })}>
               Demo veriye dön
             </button>
           ) : (
@@ -175,17 +185,42 @@ export default function Dashboard() {
           )}
         </div>
         <div className="note">
-          Dosyanız yalnızca tarayıcınızda işlenir; hiçbir sunucuya gönderilmez. Gerekli sütunlar: müşteri kodu, müşteri adı, tarih, adet. Tutar, ürün, marka ve bölge isteğe bağlı. Virgül
-          veya noktalı virgül ayraçlı dosyalar ve 1.234,56 / 31.12.2026 gibi Türkçe formatlar desteklenir.
+          Dosyanız yalnızca tarayıcınızda işlenir; hiçbir sunucuya gönderilmez. Gerekli sütunlar: müşteri kodu, müşteri adı, tarih, adet. Tutar, ürün, marka ve bölge isteğe bağlı. Virgül,
+          noktalı virgül veya sekme ayraçlı dosyalar ve 1.234,56 / 31.12.2026 gibi Türkçe biçimler desteklenir. Hatalı satır varsa analiz yapılmaz, satır numarasıyla gösterilir.
         </div>
       </section>
 
       {error && <div className="alert err">{error}</div>}
+      {source.kind === "upload" && source.warnings.length > 0 && (
+        <div className="alert warn">
+          {source.warnings.map((w, i) => (
+            <div key={i}>{w.message}</div>
+          ))}
+        </div>
+      )}
 
       {pending && (
         <section className="mapping">
-          <h3>Sütunları eşleştirin</h3>
-          <div className="sub">“{pending.name}” dosyasındaki bazı sütunları otomatik tanıyamadık. Hangi sütunun neye karşılık geldiğini seçin.</div>
+          <h3>{pending.check?.errors.length ? "Dosyada düzeltilmesi gereken yerler var" : "Sütunları eşleştirin"}</h3>
+          <div className="sub">
+            {pending.check?.errors.length
+              ? `“${pending.name}” analiz edilmedi: hatalı satırlar sessizce atılmaz, çünkü eksik veriyle yapılan analiz yanlış kişiyi öne çıkarır. Sütun veya sayı biçimi yanlış seçildiyse aşağıdan düzeltin; değilse dosyayı düzeltip tekrar yükleyin.`
+              : `“${pending.name}” dosyasındaki bazı sütunları otomatik tanıyamadık. Hangi sütunun neye karşılık geldiğini seçin.`}
+          </div>
+          {pending.check?.errors.length > 0 && (
+            <div className="alert err" style={{ marginTop: 12 }}>
+              <b>{fmtInt(pending.check.errorCount)} hata</b>
+              {pending.check.errorCount > pending.check.errors.length && <> (ilk {pending.check.errors.length} tanesi)</>}
+              <ul className="errlist">
+                {pending.check.errors.slice(0, 12).map((e, i) => (
+                  <li key={i}>
+                    {e.row ? `Satır ${e.row}: ` : ""}
+                    {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="mapping-grid">
             {[...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].map((f) => (
               <div key={f}>
@@ -195,7 +230,7 @@ export default function Dashboard() {
                 </label>
                 <select value={pending.map[f] || ""} onChange={(e) => setPending({ ...pending, map: { ...pending.map, [f]: e.target.value } })}>
                   <option value="">— seçin —</option>
-                  {pending.headers.map((h) => (
+                  {pending.table.headers.map((h) => (
                     <option key={h} value={h}>
                       {h}
                     </option>
@@ -203,10 +238,20 @@ export default function Dashboard() {
                 </select>
               </div>
             ))}
+            <div>
+              <label>Sayı biçimi *</label>
+              <select value={pending.locale} onChange={(e) => setPending({ ...pending, locale: e.target.value })}>
+                {Object.entries(LOCALES).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="actions-row">
-            <button className="btn primary" disabled={validateMapping(pending.map).length > 0} onClick={() => applyRows(pending.raw, pending.map, pending.name)}>
-              Analiz et
+            <button className="btn primary" disabled={validateMapping(pending.map).length > 0} onClick={() => tryApply(pending)}>
+              {pending.check ? "Tekrar kontrol et" : "Analiz et"}
             </button>
             <button className="btn" onClick={() => setPending(null)}>
               Vazgeç
@@ -222,7 +267,7 @@ export default function Dashboard() {
         <div className="kpi">
           <small>Müşteri</small>
           <div className="v">{fmtInt(k.accounts)}</div>
-          <div className="s">son alım: {fmtDate(result.asOf)}</div>
+          <div className="s">son kayıt: {fmtDate(result.asOf)}</div>
         </div>
         <div className="kpi">
           <small>{result.basis === "revenue" ? "Toplam ciro" : "Toplam adet"}</small>
@@ -317,7 +362,7 @@ export default function Dashboard() {
               {th("segment_key", "Segment")}
               <th>R · F · M</th>
               {th("recency_days", "Son alım", "num")}
-              {th("frequency", "Sipariş günü", "num")}
+              {th("frequency", "Alım günü", "num")}
               {th("monetary", result.basis === "revenue" ? "Ciro" : "Adet", "num")}
               {th("trend", "Son 90 gün", "num")}
               <th>12 ay</th>

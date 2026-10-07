@@ -1,1 +1,4 @@
-import{NextResponse}from"next/server";import{qlikConfigFromEnv,testQlikRest,getQlikApp}from"../../../lib/connectors/qlik.js";export async function GET(){const cfg=qlikConfigFromEnv();const connection=await testQlikRest(cfg);if(!connection.ok)return NextResponse.json({connection},{status:connection.status||503});let app=null;if(cfg.appId){try{const a=await getQlikApp(cfg);app={id:a.id,name:a.name}}catch(e){app={error:e.message}}}return NextResponse.json({connection,app,security:"Credentials are read server-side only."})}
+import { handleQlikStatus } from "../../../lib/security/qlik-status.js";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export async function GET(request) { return handleQlikStatus(request); }

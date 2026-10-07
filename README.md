@@ -21,6 +21,7 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
   - Copy-paste from any ERP, BI or spreadsheet screen
   - Common ERP header vocabulary (Cari Kodu, Cari Hesap Ünvanı, Evrak Tarihi, Net Tutar, Stok Adı…) maps automatically; any other layout is mapped once and remembered in that browser
 - Normalized customer/sales schema
+- Morning briefing preview built only from computed results: who to call today, follow-ups and a summary, with varied, respectful openers and no prices, stock or campaign promises. A number guard (`validateBriefingText`) rejects any text containing a figure — by kind: money, %, days, date, count — that is not in the data, so a future AI rewrite can be checked before it is sent
 - Fail-closed data checks (from the observer pilot): bad dates/numbers, one code with two names, broken CSV structure stop the analysis and are listed by line number; duplicates, blank amounts and returns are flagged, never silently changed; money is summed in kuruş; stale exports are labelled with their own date
 - Connector foundation for external data sources
 - Reference BI connector: Qlik Cloud (REST + QIX engine)

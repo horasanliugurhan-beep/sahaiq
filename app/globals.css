@@ -34,7 +34,7 @@ button { font: inherit; }
 .source { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); margin: 10px 0 18px; }
 .source .meta { font-size: 14px; color: var(--muted); }
 .source .meta b { color: var(--text); }
-.actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
@@ -111,3 +111,6 @@ details.how li { margin: 6px 0; }
 footer { margin-top: 34px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
 .paste { width: 100%; min-height: 160px; margin-top: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+.brief-text { white-space: pre-wrap; word-break: break-word; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; font: 13.5px/1.55 Inter, "Segoe UI", system-ui, sans-serif; max-height: 520px; overflow: auto; margin: 0; }
+.okchip { background: rgba(95, 211, 166, .14); color: var(--low); }
+.badchip { background: rgba(255, 107, 107, .15); color: var(--high); }

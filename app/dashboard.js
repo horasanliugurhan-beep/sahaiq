@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
+import { buildBriefing, briefingToText, validateBriefingText } from "../lib/briefing.js";
+import { fmtDate, fmtInt, fmtMoney } from "../lib/format.js";
 import { generateSampleRows } from "../lib/sample-data.js";
 import { parseTable, toCsv, MAX_IMPORT_CHARS } from "../lib/import/csv.js";
 import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, LOCALES, autoMap, guessLocale, headerSignature, validateDataset, validateMapping } from "../lib/import/schema.js";
@@ -33,23 +35,6 @@ function saveMapping(sig, map, locale) {
 const DAY_MS = 86400000;
 
 const PRIORITY_LABEL = { 3: "Yüksek öncelik", 2: "Orta öncelik", 1: "Düşük öncelik" };
-
-// Hand-rolled Turkish formatting: Intl output differs between the build server
-// and browsers, which would break hydration of the pre-rendered page.
-const fmtInt = (n) => {
-  const s = String(Math.abs(Math.round(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return n < 0 ? "-" + s : s;
-};
-const fmtMoney = (n) => {
-  if (Math.abs(n) >= 1e6) return "₺" + (n / 1e6).toFixed(1).replace(".", ",") + " Mn";
-  return "₺" + fmtInt(n);
-};
-const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-const fmtDate = (iso) => {
-  if (!iso) return "–";
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y}`;
-};
 
 function Sparkline({ values, width = 96, height = 26 }) {
   const max = Math.max(...values, 1);
@@ -86,10 +71,28 @@ export default function Dashboard() {
   const [sort, setSort] = useState({ key: "monetary", dir: -1 });
   const [showAll, setShowAll] = useState(false);
   const [paste, setPaste] = useState(null); // null = closed, string = textarea content
+  const [copied, setCopied] = useState("");
   const fileRef = useRef(null);
 
   const result = useMemo(() => analyze(source.rows), [source]);
   const unit = result.basis === "revenue" ? fmtMoney : (n) => `${fmtInt(n)} adet`;
+  // Uploaded data is checked against today's date; the fictional demo is not.
+  const briefing = useMemo(() => {
+    const today = source.kind === "upload" ? new Date().toISOString().slice(0, 10) : undefined;
+    const b = buildBriefing(result, { today });
+    const text = briefingToText(b);
+    return { b, text, check: validateBriefingText(text, b) };
+  }, [result, source.kind]);
+
+  async function copyBriefing() {
+    try {
+      await navigator.clipboard.writeText(briefing.text);
+      setCopied("Kopyalandı");
+    } catch {
+      setCopied("Kopyalanamadı; metni seçip elle kopyalayın");
+    }
+    setTimeout(() => setCopied(""), 2500);
+  }
 
   // Validate the whole file; any error blocks the analysis and is shown with its line number.
   function tryApply(p) {
@@ -438,6 +441,27 @@ export default function Dashboard() {
           </div>
         </aside>
       </div>
+
+      <section className="brief" aria-label="Sabah brifingi önizlemesi">
+        <div className="table-head" style={{ marginTop: 30 }}>
+          <div>
+            <h2>Sabah brifingi önizlemesi</h2>
+            <p className="sub" style={{ margin: 0 }}>
+              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim henüz yok: kopyalayıp WhatsApp veya Telegram'a
+              yapıştırabilirsiniz.
+            </p>
+          </div>
+          <div className="actions-row">
+            <span className={`chip ${briefing.check.ok ? "okchip" : "badchip"}`} title="Metindeki her rakam hesaplanan veride var mı?">
+              {briefing.check.ok ? "✓ Tüm rakamlar veriden" : `Doğrulanmayan rakam: ${briefing.check.unknown.join(", ")}`}
+            </span>
+            <button className="btn" onClick={copyBriefing}>
+              {copied || "Metni kopyala"}
+            </button>
+          </div>
+        </div>
+        <pre className="brief-text">{briefing.text}</pre>
+      </section>
 
       <div className="table-head">
         <div>

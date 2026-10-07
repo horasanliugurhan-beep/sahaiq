@@ -15,7 +15,11 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
 - Sales decline and follow-up signals
 - Live in-browser demo: 40 synthetic accounts, 12 months of history
 - Prioritised "who to call today" list with the reason for every recommendation
-- CSV import (comma or semicolon, Turkish number/date formats, ERP header auto-mapping); files never leave the browser
+- Import from anywhere, all in the browser (files never leave it):
+  - Excel `.xlsx` (picks the sales sheet, skips report title rows, reads real date cells)
+  - CSV / TSV (comma, semicolon or tab; Turkish `1.234,56` and `31.12.2026` formats)
+  - Copy-paste from any ERP, BI or spreadsheet screen
+  - Common ERP header vocabulary (Cari Kodu, Cari Hesap Ünvanı, Evrak Tarihi, Net Tutar, Stok Adı…) maps automatically; any other layout is mapped once and remembered in that browser
 - Normalized customer/sales schema
 - Fail-closed data checks (from the observer pilot): bad dates/numbers, one code with two names, broken CSV structure stop the analysis and are listed by line number; duplicates, blank amounts and returns are flagged, never silently changed; money is summed in kuruş; stale exports are labelled with their own date
 - Connector foundation for external data sources

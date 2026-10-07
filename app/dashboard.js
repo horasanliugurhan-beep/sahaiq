@@ -4,10 +4,32 @@ import { useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
 import { generateSampleRows } from "../lib/sample-data.js";
 import { parseTable, toCsv, MAX_IMPORT_CHARS } from "../lib/import/csv.js";
-import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, LOCALES, autoMap, guessLocale, validateDataset, validateMapping } from "../lib/import/schema.js";
+import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, LOCALES, autoMap, guessLocale, headerSignature, validateDataset, validateMapping } from "../lib/import/schema.js";
+import { pickSheet, sheetToTable } from "../lib/import/xlsx.js";
 
 const SAMPLE_ROWS = generateSampleRows();
 const MAX_FILE_BYTES = MAX_IMPORT_CHARS;
+const MAX_XLSX_BYTES = 15 * 1024 * 1024;
+const MAPPINGS_KEY = "sahaiq.mappings.v1";
+
+// Saved column mappings live only in this browser (a convenience, never required).
+function loadMappings() {
+  try {
+    return JSON.parse(localStorage.getItem(MAPPINGS_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+function saveMapping(sig, map, locale) {
+  try {
+    const all = loadMappings();
+    all[sig] = { map, locale, savedAt: Date.now() };
+    const keep = Object.entries(all).sort((a, b) => b[1].savedAt - a[1].savedAt).slice(0, 20);
+    localStorage.setItem(MAPPINGS_KEY, JSON.stringify(Object.fromEntries(keep)));
+  } catch {
+    /* storage unavailable: mapping simply isn't remembered */
+  }
+}
 const DAY_MS = 86400000;
 
 const PRIORITY_LABEL = { 3: "Yüksek öncelik", 2: "Orta öncelik", 1: "Düşük öncelik" };
@@ -63,6 +85,7 @@ export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState({ key: "monetary", dir: -1 });
   const [showAll, setShowAll] = useState(false);
+  const [paste, setPaste] = useState(null); // null = closed, string = textarea content
   const fileRef = useRef(null);
 
   const result = useMemo(() => analyze(source.rows), [source]);
@@ -79,13 +102,32 @@ export default function Dashboard() {
     const latest = check.rows.reduce((m, r) => (r.date > m ? r.date : m), check.rows[0].date);
     const ageDays = Math.floor((Date.now() - Date.parse(latest + "T00:00:00Z")) / DAY_MS);
     const warnings = [...check.warnings];
+    if (p.note) warnings.unshift({ row: 0, field: "source", message: p.note });
     if (ageDays > 14) warnings.unshift({ row: 0, field: "asOf", message: `Dosyadaki en son kayıt ${fmtDate(latest)} (${fmtInt(ageDays)} gün önce). Sonuçlar bugünü değil, o tarihi gösterir.` });
-    setSource({ kind: "upload", name: p.name, rows: check.rows, warnings, locale: p.locale });
+    if (p.table.headers.length) saveMapping(headerSignature(p.table.headers), p.map, p.locale);
+    setSource({ kind: "upload", name: p.name, rows: check.rows, warnings, locale: p.locale, origin: p.origin, table: p.table, map: p.map });
     setPending(null);
     setError("");
     setSegment(null);
     setQuery("");
     setShowAll(false);
+  }
+
+  // Every source (CSV, Excel, paste) ends up as the same table and the same checks.
+  function ingest(table, name, extra = {}) {
+    if (!table.rows.length) {
+      setError("Dosyada veri satırı yok.");
+      return;
+    }
+    const saved = loadMappings()[headerSignature(table.headers)];
+    const savedOk = saved && Object.values(saved.map).every((h) => !h || table.headers.includes(h)) && !validateMapping(saved.map).length;
+    const map = savedOk ? saved.map : autoMap(table.headers);
+    const sample = table.rows.slice(0, 500).flatMap((r) => [map.quantity, map.revenue].filter(Boolean).map((h) => r[h]));
+    const locale = savedOk ? saved.locale : guessLocale(sample.filter((v) => typeof v === "string"));
+    const notes = [extra.note, savedOk ? "Bu rapor düzeni daha önce eşleştirilmişti; kayıtlı eşleştirme uygulandı." : null].filter(Boolean);
+    const p = { table, map, locale, name, origin: extra.origin || "csv", note: notes.join(" ") || null };
+    if (validateMapping(map).length) setPending({ ...p, check: null });
+    else tryApply(p);
   }
 
   async function onFile(e) {
@@ -94,30 +136,56 @@ export default function Dashboard() {
     if (!file) return;
     setError("");
     setPending(null);
-    if (file.size > MAX_FILE_BYTES) {
-      setError("Dosya 5 MB sınırını aşıyor. Daha kısa bir dönem seçip tekrar deneyin.");
+    setPaste(null);
+    const isXlsx = /\.xlsx$/i.test(file.name);
+    if (/\.xls$/i.test(file.name)) {
+      setError("Eski .xls biçimi okunamıyor. Excel'de 'Farklı kaydet → Excel Çalışma Kitabı (.xlsx)' ya da CSV ile kaydedin.");
       return;
     }
-    if (!/\.(csv|txt|tsv)$/i.test(file.name)) {
-      setError("Şimdilik CSV dosyası destekleniyor. Excel'de 'Farklı kaydet → CSV UTF-8' ile dışa aktarabilirsiniz.");
+    if (!isXlsx && !/\.(csv|txt|tsv)$/i.test(file.name)) {
+      setError("Desteklenen dosyalar: .xlsx, .csv, .tsv. İsterseniz tabloyu Excel'den kopyalayıp 'Excel'den yapıştır' ile de ekleyebilirsiniz.");
       return;
     }
-    let table;
+    if (file.size > (isXlsx ? MAX_XLSX_BYTES : MAX_FILE_BYTES)) {
+      setError(`Dosya ${isXlsx ? "15" : "5"} MB sınırını aşıyor. Daha kısa bir dönem seçip tekrar deneyin.`);
+      return;
+    }
     try {
-      table = parseTable(await file.text());
+      if (isXlsx) {
+        const { default: readExcelFile } = await import("read-excel-file/browser");
+        const sheets = await readExcelFile(file);
+        const sheet = pickSheet(sheets);
+        if (!sheet) {
+          setError("Excel dosyasında veri bulunan bir sayfa yok.");
+          return;
+        }
+        const table = sheetToTable(sheet.data);
+        const bits = [];
+        if (sheets.length > 1) bits.push(`${sheets.length} sayfadan "${sheet.sheet}" okundu.`);
+        if (table.skippedTitleRows) bits.push(`Üstteki ${table.skippedTitleRows} başlık/açıklama satırı atlandı; tablo ${table.skippedTitleRows + 1}. satırdan başlıyor.`);
+        ingest(table, file.name, { origin: "xlsx", note: bits.join(" ") || null });
+      } else {
+        ingest(parseTable(await file.text()), file.name, { origin: "csv" });
+      }
     } catch (err) {
-      setError("Dosya okunamadı. " + err.message);
-      return;
+      setError("Dosya okunamadı. " + (err?.message || ""));
     }
-    if (!table.rows.length) {
-      setError("Dosyada veri satırı yok.");
-      return;
+  }
+
+  function onPasteSubmit() {
+    setError("");
+    setPending(null);
+    try {
+      const table = parseTable(paste || "");
+      if (!table.rows.length) {
+        setError("Yapıştırılan metinde başlık satırı ve en az bir veri satırı olmalı.");
+        return;
+      }
+      setPaste(null);
+      ingest(table, "Yapıştırılan tablo", { origin: "paste" });
+    } catch (err) {
+      setError("Yapıştırılan tablo okunamadı. " + (err?.message || ""));
     }
-    const map = autoMap(table.headers);
-    const sample = table.rows.slice(0, 500).flatMap((r) => [map.quantity, map.revenue].filter(Boolean).map((h) => r[h]));
-    const p = { table, map, locale: guessLocale(sample), name: file.name };
-    if (validateMapping(map).length) setPending({ ...p, check: null });
-    else tryApply(p);
   }
 
   const callList = result.callList;
@@ -159,7 +227,7 @@ export default function Dashboard() {
         <h1>Bugün önce kimi aramalısınız?</h1>
         <p>
           Satış verisini okur, müşterileri RFM ile segmentlere ayırır, düşüşteki ve sessizleşen müşterileri işaretler ve her biri için gerekçesiyle bir sonraki adımı önerir. Aşağıdaki
-          ekran gerçekten hesaplanıyor: kendi CSV dosyanızı yükleyip deneyebilirsiniz.
+          ekran gerçekten hesaplanıyor: kendi Excel veya CSV dosyanızı yükleyip ya da tabloyu yapıştırıp deneyebilirsiniz.
         </p>
       </header>
 
@@ -171,9 +239,17 @@ export default function Dashboard() {
         </div>
         <div className="actions-row">
           <button className="btn primary" onClick={() => fileRef.current?.click()}>
-            Kendi CSV'nizi yükleyin
+            Kendi dosyanızı yükleyin
           </button>
-          <input ref={fileRef} className="hidden-input" type="file" accept=".csv,.txt,text/csv" onChange={onFile} />
+          <input ref={fileRef} className="hidden-input" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onFile} />
+          <button className="btn" onClick={() => setPaste((v) => (v === null ? "" : null))}>
+            Excel'den yapıştır
+          </button>
+          {source.kind === "upload" && source.table && (
+            <button className="btn" onClick={() => setPending({ table: source.table, map: source.map, locale: source.locale, name: source.name, origin: source.origin, check: null, note: null })}>
+              Eşleştirmeyi değiştir
+            </button>
+          )}
           {source.kind === "upload" ? (
             <button className="btn" onClick={() => setSource({ kind: "demo", name: "Kurgusal demo verisi", rows: SAMPLE_ROWS, warnings: [] })}>
               Demo veriye dön
@@ -185,12 +261,28 @@ export default function Dashboard() {
           )}
         </div>
         <div className="note">
-          Dosyanız yalnızca tarayıcınızda işlenir; hiçbir sunucuya gönderilmez. Gerekli sütunlar: müşteri kodu, müşteri adı, tarih, adet. Tutar, ürün, marka ve bölge isteğe bağlı. Virgül,
-          noktalı virgül veya sekme ayraçlı dosyalar ve 1.234,56 / 31.12.2026 gibi Türkçe biçimler desteklenir. Hatalı satır varsa analiz yapılmaz, satır numarasıyla gösterilir.
+          Dosyanız yalnızca tarayıcınızda işlenir; hiçbir sunucuya gönderilmez. Excel (.xlsx), CSV/TSV veya herhangi bir ERP/BI ekranından kopyalanmış tablo kabul edilir. Gerekli
+          sütunlar: müşteri kodu, müşteri adı, tarih, adet; tutar, ürün, marka ve bölge isteğe bağlı. Yaygın ERP başlıkları (Cari Kodu, Cari Hesap Ünvanı, Evrak Tarihi, Net Tutar…) otomatik
+          tanınır; tanınmayanları bir kez eşleştirmeniz yeterli, bu tarayıcı aynı rapor düzenini hatırlar. Hatalı satır varsa analiz yapılmaz, satır numarasıyla gösterilir.
         </div>
       </section>
 
       {error && <div className="alert err">{error}</div>}
+      {paste !== null && (
+        <section className="mapping">
+          <h3>Excel'den yapıştır</h3>
+          <div className="sub">Excel'de, ERP'de ya da BI ekranında tabloyu başlık satırıyla birlikte seçip kopyalayın (Ctrl+C), aşağıya yapıştırın (Ctrl+V).</div>
+          <textarea className="paste" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={"Cari Kodu\tCari Ünvanı\tFatura Tarihi\tMiktar\tNet Tutar\n..."} spellCheck={false} />
+          <div className="actions-row" style={{ marginTop: 10 }}>
+            <button className="btn primary" disabled={!paste.trim()} onClick={onPasteSubmit}>
+              Analiz et
+            </button>
+            <button className="btn" onClick={() => setPaste(null)}>
+              Vazgeç
+            </button>
+          </div>
+        </section>
+      )}
       {source.kind === "upload" && source.warnings.length > 0 && (
         <div className="alert warn">
           {source.warnings.map((w, i) => (
@@ -201,11 +293,13 @@ export default function Dashboard() {
 
       {pending && (
         <section className="mapping">
-          <h3>{pending.check?.errors.length ? "Dosyada düzeltilmesi gereken yerler var" : "Sütunları eşleştirin"}</h3>
+          <h3>{pending.check?.errors.length ? "Dosyada düzeltilmesi gereken yerler var" : validateMapping(pending.map).length ? "Sütunları eşleştirin" : "Eşleştirmeyi kontrol edin"}</h3>
           <div className="sub">
             {pending.check?.errors.length
               ? `“${pending.name}” analiz edilmedi: hatalı satırlar sessizce atılmaz, çünkü eksik veriyle yapılan analiz yanlış kişiyi öne çıkarır. Sütun veya sayı biçimi yanlış seçildiyse aşağıdan düzeltin; değilse dosyayı düzeltip tekrar yükleyin.`
-              : `“${pending.name}” dosyasındaki bazı sütunları otomatik tanıyamadık. Hangi sütunun neye karşılık geldiğini seçin.`}
+              : validateMapping(pending.map).length
+              ? `“${pending.name}” dosyasındaki bazı sütunları otomatik tanıyamadık. Hangi sütunun neye karşılık geldiğini bir kez seçin; bu tarayıcı aynı rapor düzenini bir dahaki sefere hatırlar.`
+              : `“${pending.name}” için seçili eşleştirme aşağıda. Değiştirip tekrar analiz edebilirsiniz.`}
           </div>
           {pending.check?.errors.length > 0 && (
             <div className="alert err" style={{ marginTop: 12 }}>

@@ -95,6 +95,12 @@ test("no critical or serious accessibility violations", async ({ page }) => {
 
 test("verified briefing opens in WhatsApp with the exact text and saves as .txt", async ({ page, context }) => {
   const expected = await page.locator(".brief-text").textContent();
+  // The transfer to WhatsApp is disclosed next to the button before any click.
+  const wa = page.getByRole("button", { name: "WhatsApp'ta aç" });
+  await expect(wa).toHaveAttribute("aria-describedby", "wa-note");
+  await expect(page.locator("#wa-note")).toBeVisible();
+  await expect(page.locator("#wa-note")).toContainText("WhatsApp'a aktarılır");
+  await expect(page.locator(".brief")).not.toContainText("hiçbir yere");
   // Don't load WhatsApp in tests; the URL is what matters.
   await context.route(/^https:\/\/(wa\.me|api\.whatsapp\.com)\//, (route) => route.fulfill({ status: 200, body: "" }));
   const [popup] = await Promise.all([

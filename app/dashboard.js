@@ -478,8 +478,8 @@ export default function Dashboard() {
           <div>
             <h2>Sabah brifingi önizlemesi</h2>
             <p className="sub" style={{ margin: 0 }}>
-              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim henüz yok: WhatsApp'ta açıp kişiyi siz
-              seçersiniz, ya da kopyalayıp Telegram'a yapıştırırsınız. SahaIQ hiçbir yere kendisi göndermez.
+              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim yok: kopyalayabilir, .txt olarak
+              indirebilir ya da WhatsApp'ta açabilirsiniz.
             </p>
           </div>
           <div className="actions-row">
@@ -489,7 +489,7 @@ export default function Dashboard() {
             <button className="btn" onClick={copyBriefing} disabled={!briefing.check.ok}>
               {copied || "Metni kopyala"}
             </button>
-            <button className="btn" onClick={() => sendBriefing("whatsapp")} disabled={!briefing.check.ok}>
+            <button className="btn" onClick={() => sendBriefing("whatsapp")} disabled={!briefing.check.ok} aria-describedby="wa-note">
               WhatsApp'ta aç
             </button>
             <button className="btn" onClick={() => sendBriefing("file")} disabled={!briefing.check.ok}>
@@ -497,6 +497,10 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+        <p className="note share-note" id="wa-note">
+          <b>WhatsApp'ta aç:</b> brifing metninin tamamı (müşteri adları ve rakamlar dahil) bağlantı içinde WhatsApp'a aktarılır. Mesaj kendiliğinden gitmez; alıcıyı seçip
+          gönderen sizsiniz. Kopyala ve .txt indir ise metni bilgisayarınızdan çıkarmaz.
+        </p>
         <pre className="brief-text" tabIndex={0} aria-label="Brifing metni">{briefing.text}</pre>
       </section>
 

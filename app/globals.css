@@ -121,5 +121,7 @@ footer { margin-top: 34px; color: var(--muted); font-size: 13px; display: flex; 
 
 .paste { width: 100%; min-height: 160px; margin-top: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
 .brief-text { white-space: pre-wrap; word-break: break-word; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; font: 13.5px/1.55 Inter, "Segoe UI", system-ui, sans-serif; max-height: 520px; overflow: auto; margin: 0; }
+.share-note { margin: 0 0 10px; }
+.share-note b { color: var(--text); }
 .okchip { background: rgba(95, 211, 166, .14); color: var(--low); }
 .badchip { background: rgba(255, 107, 107, .15); color: var(--high); }

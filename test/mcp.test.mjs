@@ -39,6 +39,10 @@ test("initialize negotiates a known protocol version and declares tools only", (
   assert.match(r.instructions, /KURGUSAL/);
   const unknown = handleMessage({ jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "1999-01-01" } }).result;
   assert.equal(unknown.protocolVersion, PROTOCOL_VERSIONS[0]);
+  // 2024-11-05 means the legacy HTTP+SSE transport, which we don't serve: never echo it.
+  const legacy = handleMessage({ jsonrpc: "2.0", id: 3, method: "initialize", params: { protocolVersion: "2024-11-05" } }).result;
+  assert.equal(legacy.protocolVersion, PROTOCOL_VERSIONS[0]);
+  assert.ok(!PROTOCOL_VERSIONS.includes("2024-11-05"));
 });
 
 test("JSON-RPC edge cases", () => {
@@ -209,6 +213,7 @@ test("MCP-Protocol-Version header: supported or missing is fine, unknown is 400"
   assert.equal((await post(ping, { "mcp-protocol-version": "2025-06-18" })).status, 200);
   assert.equal((await post(ping)).status, 200);
   assert.equal((await post(ping, { "mcp-protocol-version": "1999-01-01" })).status, 400);
+  assert.equal((await post(ping, { "mcp-protocol-version": "2024-11-05" })).status, 400);
   assert.equal((await post(ping, { "mcp-protocol-version": "" })).status, 400);
 });
 

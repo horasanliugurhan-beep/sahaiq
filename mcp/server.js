@@ -7,7 +7,9 @@ import { callTool, listTools } from "./tools.js";
 
 export const SERVER_INFO = { name: "sahaiq", title: "SahaIQ (kurgusal demo verisi)", version: "0.1.0" };
 // Newest first. We answer with the client's version when we know it.
-export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+// Streamable HTTP only: 2024-11-05 used the older HTTP+SSE transport, which this
+// server does not implement, so it is deliberately not offered.
+export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 const MAX_BODY = 64 * 1024;
 // Origin policy (MCP Streamable HTTP: servers must validate Origin; invalid → 403).
 // Claude's connectors call from Anthropic's servers without an Origin header, so

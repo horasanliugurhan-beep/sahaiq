@@ -52,6 +52,14 @@ Required: `customer_id`, `customer_name`, `date`, `quantity`
 
 Optional: `revenue`, `product`, `brand`, `region`
 
+Numeric Excel amounts must be finite and fit in safe integer kuruş. They are
+rounded to kuruş; changes larger than the floating-point tolerance produce a
+visible warning with the number of affected cells and the first source row.
+CSV, pasted text and Excel text cells still reject amounts with more than two
+decimal places. Quantities must be safe integers and are never rounded.
+Customer names and products must be single-line values without control
+characters; invalid cells block the import and are reported by source row.
+
 ## Data connectors
 
 SahaIQ is source-agnostic: every connector maps its fields into the same vendor-neutral schema, so the CRM is not tied to any single company, database or BI tool.

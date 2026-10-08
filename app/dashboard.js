@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
+import { shareTargets } from "../lib/briefing-share.js";
 import { buildBriefing, briefingToText, validateBriefingText } from "../lib/briefing.js";
 import { fmtDate, fmtInt, fmtMoney, fmtRecency } from "../lib/format.js";
 import { generateSampleRows } from "../lib/sample-data.js";
@@ -50,8 +51,8 @@ function Sparkline({ values, width = 96, height = 26 }) {
   );
 }
 
-function download(name, text) {
-  const blob = new Blob(["﻿" + text], { type: "text/csv;charset=utf-8" });
+function download(name, text, type = "text/csv;charset=utf-8") {
+  const blob = new Blob(["﻿" + text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -98,6 +99,18 @@ export default function Dashboard() {
       setCopied("Kopyalanamadı; metni seçip elle kopyalayın");
     }
     setTimeout(() => setCopied(""), 2500);
+  }
+
+  // Same rule as copying: re-validate at the moment of sending.
+  function sendBriefing(kind) {
+    const t = shareTargets(briefing.text, briefing.b);
+    if (!t.ok) {
+      setCopied("Doğrulanmayan brifing gönderilemez");
+      setTimeout(() => setCopied(""), 2500);
+      return;
+    }
+    if (kind === "whatsapp") window.open(t.whatsapp, "_blank", "noopener,noreferrer");
+    else download(t.fileName, briefing.text, "text/plain;charset=utf-8");
   }
 
   // Validate the whole file; any error blocks the analysis and is shown with its line number.
@@ -465,8 +478,8 @@ export default function Dashboard() {
           <div>
             <h2>Sabah brifingi önizlemesi</h2>
             <p className="sub" style={{ margin: 0 }}>
-              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim henüz yok: kopyalayıp WhatsApp veya Telegram'a
-              yapıştırabilirsiniz.
+              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim yok: kopyalayabilir, .txt olarak
+              indirebilir ya da WhatsApp'ta açabilirsiniz.
             </p>
           </div>
           <div className="actions-row">
@@ -476,8 +489,18 @@ export default function Dashboard() {
             <button className="btn" onClick={copyBriefing} disabled={!briefing.check.ok}>
               {copied || "Metni kopyala"}
             </button>
+            <button className="btn" onClick={() => sendBriefing("whatsapp")} disabled={!briefing.check.ok} aria-describedby="wa-note">
+              WhatsApp'ta aç
+            </button>
+            <button className="btn" onClick={() => sendBriefing("file")} disabled={!briefing.check.ok}>
+              .txt indir
+            </button>
           </div>
         </div>
+        <p className="note share-note" id="wa-note">
+          <b>WhatsApp'ta aç:</b> brifing metninin tamamı (müşteri adları ve rakamlar dahil) bağlantı içinde WhatsApp'a aktarılır. Mesaj kendiliğinden gitmez; alıcıyı seçip
+          gönderen sizsiniz. Kopyala ve .txt indir ise metni bilgisayarınızdan çıkarmaz.
+        </p>
         <pre className="brief-text" tabIndex={0} aria-label="Brifing metni">{briefing.text}</pre>
       </section>
 

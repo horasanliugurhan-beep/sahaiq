@@ -122,6 +122,11 @@ test("bad input is a tool error with a plain message, never a crash or a stack",
     ["get_sales_timeseries", { granularity: "day" }],
     ["get_sales_timeseries", { granularity: "week", customer_id: "YOK" }],
     ["get_kpis", ["array"]],
+    ["get_kpis", JSON.parse('{"toString":1}')],
+    ["get_kpis", JSON.parse('{"constructor":1}')],
+    ["get_kpis", JSON.parse('{"__proto__":{"x":1}}')],
+    ["get_kpis", JSON.parse('{"hasOwnProperty":1}')],
+    ["get_call_list", JSON.parse('{"valueOf":1}')],
   ]) {
     const r = call(name, args);
     assert.equal(r.isError, true, `${name} ${JSON.stringify(args)}`);
@@ -144,6 +149,24 @@ test("HTTP: POST JSON works, everything else is refused", async () => {
   assert.equal((await post("{not json")).status, 400);
   assert.equal((await post("{}", { "content-type": "text/plain" })).status, 415);
   assert.equal((await post(JSON.stringify({ x: "y".repeat(70 * 1024) }))).status, 413);
+  // The limit is in bytes: 40k "ş" is ~40 KB of UTF-16 but ~80 KB of UTF-8.
+  const multibyte = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping", params: { x: "ş".repeat(40000) } });
+  assert.equal((await post(multibyte)).status, 413);
+  // Chunked body without Content-Length is still capped while streaming.
+  let pulled = 0;
+  const endless = new ReadableStream({
+    pull(c) {
+      pulled++;
+      c.enqueue(new Uint8Array(16 * 1024).fill(32));
+      if (pulled > 1000) c.close();
+    },
+  });
+  const chunked = await handleHttp(new Request("http://x/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: endless, duplex: "half" }));
+  assert.equal(chunked.status, 413);
+  assert.ok(pulled < 10, `stopped reading early (pulled ${pulled} chunks)`);
+  // Invalid UTF-8 is a parse error, not silently replaced.
+  const badUtf8 = await handleHttp(new Request("http://x/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: new Uint8Array([0x7b, 0xff, 0x7d]) }));
+  assert.equal(badUtf8.status, 400);
   assert.equal((await post([])).status, 400);
   const batch = await post([{ jsonrpc: "2.0", id: 1, method: "ping" }, { jsonrpc: "2.0", method: "notifications/x" }]);
   assert.equal((await batch.json()).length, 1);

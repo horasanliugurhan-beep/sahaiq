@@ -88,7 +88,8 @@ function check(schema, args) {
   const input = args ?? {};
   if (typeof input !== "object" || Array.isArray(input)) throw new ToolInputError("Argümanlar bir nesne olmalı.");
   const props = schema.properties || {};
-  for (const key of Object.keys(input)) if (!(key in props)) throw new ToolInputError(`Bilinmeyen argüman: ${key}`);
+  // Own properties only: `in` would accept inherited names like toString or __proto__.
+  for (const key of Object.keys(input)) if (!Object.hasOwn(props, key)) throw new ToolInputError(`Bilinmeyen argüman: ${key.slice(0, 40)}`);
   for (const key of schema.required || []) if (input[key] === undefined) throw new ToolInputError(`Eksik argüman: ${key}`);
   for (const [key, p] of Object.entries(props)) {
     const v = input[key];

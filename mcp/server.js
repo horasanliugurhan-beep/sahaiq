@@ -53,6 +53,31 @@ const json = (body, status = 200, extra = {}) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...extra },
   });
 
+/** Reads the body up to `max` bytes; returns null (and cancels) beyond that. */
+async function readLimited(request, max) {
+  if (!request.body) return new Uint8Array(0);
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
+
 /** Web-standard fetch handler (Cloudflare Workers, Node 18+, tests). */
 export async function handleHttp(request) {
   const url = new URL(request.url);
@@ -65,12 +90,14 @@ export async function handleHttp(request) {
   if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) return json(fail(null, -32700, "Content-Type must be application/json"), 415);
   const declared = Number(request.headers.get("content-length") || 0);
   if (declared > MAX_BODY) return json(fail(null, -32600, "Request too large"), 413);
-  const text = await request.text();
-  if (text.length > MAX_BODY) return json(fail(null, -32600, "Request too large"), 413);
+  // Count bytes while streaming (chunked bodies have no Content-Length) and
+  // stop reading as soon as the limit is passed.
+  const bytes = await readLimited(request, MAX_BODY);
+  if (bytes === null) return json(fail(null, -32600, "Request too large"), 413);
 
   let payload;
   try {
-    payload = JSON.parse(text);
+    payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   } catch {
     return json(fail(null, -32700, "Parse error"), 400);
   }

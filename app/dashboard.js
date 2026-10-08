@@ -156,7 +156,8 @@ export default function Dashboard() {
     try {
       if (isXlsx) {
         const { default: readExcelFile } = await import("read-excel-file/browser");
-        const sheets = await readExcelFile(file);
+        // Validate original text before trimming, including edge newlines/tabs.
+        const sheets = await readExcelFile(file, { trim: false });
         const sheet = pickSheet(sheets);
         if (!sheet) {
           setError("Excel dosyasında veri bulunan bir sayfa yok.");

@@ -57,8 +57,11 @@ rounded to kuruş; changes larger than the floating-point tolerance produce a
 visible warning with the number of affected cells and the first source row.
 CSV, pasted text and Excel text cells still reject amounts with more than two
 decimal places. Quantities must be safe integers and are never rounded.
-Customer names and products must be single-line values without control
-characters; invalid cells block the import and are reported by source row.
+Customer names and products must be single-line values without control or
+invisible Unicode format/direction characters (including zero-width space,
+soft hyphen and BOM). Import and briefing validation share the same character
+policy. Invalid cells block the import and are reported by source row before
+trimming can hide an edge character.
 
 ## Briefing validation boundary
 

@@ -246,11 +246,14 @@ export default function Dashboard() {
   const k = result.kpis;
 
   return (
+    <>
+    <div className="road">
     <div className="wrap">
       <nav className="top">
-        <div className="brand">
-          SahaIQ<span className="badge">Canlı demo</span>
-        </div>
+        <a className="brand" href="https://sahaiq.app" aria-label="SahaIQ ana sayfa">
+          Saha<span>IQ</span>
+        </a>
+        <span className="badge">Canlı demo</span>
         <div className="links">
           <a href="https://sahaiq.app">sahaiq.app</a>
           <a href="https://github.com/horasanliugurhan-beep/sahaiq">Kaynak kod</a>
@@ -264,6 +267,10 @@ export default function Dashboard() {
           ekran gerçekten hesaplanıyor: kendi Excel veya CSV dosyanızı yükleyip ya da tabloyu yapıştırıp deneyebilirsiniz.
         </p>
       </header>
+    </div>
+    </div>
+
+    <div className="wrap">
 
       <section className="source" aria-label="Veri kaynağı">
         <div className="meta">
@@ -420,13 +427,13 @@ export default function Dashboard() {
       </section>
 
       <div className="grid">
-        <section aria-label="Arama listesi">
+        <section className="calls" aria-label="Arama listesi">
           <h2>Bugün kimi aramalı?</h2>
           <p className="sub">
             {fmtInt(callList.length)} müşteri: {fmtInt(callList.filter((c) => c.priority === 3).length)} yüksek, {fmtInt(callList.filter((c) => c.priority === 2).length)} orta,{" "}
             {fmtInt(callList.filter((c) => c.priority < 2).length)} düşük öncelik. Önceliğe ve müşterinin değerine göre sıralı; her önerinin gerekçesi yanında.
           </p>
-          {callList.length === 0 && <div className="call">Şu an aksiyon gerektiren müşteri yok.</div>}
+          {callList.length === 0 && <div className="call empty">Şu an aksiyon gerektiren müşteri yok.</div>}
           {visibleCalls.map((c) => {
             const cust = result.customers.find((x) => x.id === c.customerId);
             return (
@@ -586,5 +593,6 @@ export default function Dashboard() {
         <span>Demo verisindeki tüm firma, marka ve rakamlar kurgusaldır.</span>
       </footer>
     </div>
+    </>
   );
 }

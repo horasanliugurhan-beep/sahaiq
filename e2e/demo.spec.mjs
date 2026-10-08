@@ -19,6 +19,8 @@ test.beforeEach(async ({ page }, info) => {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   info.errors_ = errors;
+  // Web fonts are answered empty so tests never depend on the network.
+  await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, (route) => route.fulfill({ status: 200, contentType: "text/css", body: "" }));
   await page.goto("/");
 });
 test.afterEach(async ({}, info) => {

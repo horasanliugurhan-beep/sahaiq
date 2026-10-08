@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
 import { buildBriefing, briefingToText, validateBriefingText } from "../lib/briefing.js";
-import { fmtDate, fmtInt, fmtMoney } from "../lib/format.js";
+import { fmtDate, fmtInt, fmtMoney, fmtRecency } from "../lib/format.js";
 import { generateSampleRows } from "../lib/sample-data.js";
 import { parseTable, toCsv, MAX_IMPORT_CHARS } from "../lib/import/csv.js";
 import { REQUIRED_FIELDS, OPTIONAL_FIELDS, FIELD_LABELS, LOCALES, autoMap, guessLocale, headerSignature, validateDataset, validateMapping } from "../lib/import/schema.js";
@@ -202,6 +202,8 @@ export default function Dashboard() {
       .filter((c) => (!segment || c.segment_key === segment) && (!q || c.name.toLocaleLowerCase("tr").includes(q) || String(c.id).toLocaleLowerCase("tr").includes(q)))
       .sort((a, b) => {
         const x = val(a), y = val(b);
+        // Unknown recency stays last in both directions instead of sorting as 0.
+        if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
         return (typeof x === "string" ? x.localeCompare(y, "tr") : x - y) * sort.dir;
       });
   }, [result, segment, query, sort]);
@@ -401,7 +403,7 @@ export default function Dashboard() {
                   <div>
                     <div className="call-name">{c.customerName}</div>
                     <div className="call-meta">
-                      <span className="chip">{SEGMENTS[c.segmentKey]?.label}</span> · {unit(cust.monetary)} · son alım {cust.recency_days === 0 ? "bugün" : `${cust.recency_days} gün önce`}
+                      <span className="chip">{SEGMENTS[c.segmentKey]?.label}</span> · {unit(cust.monetary)} · son alım {fmtRecency(cust.recency_days)}
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -497,9 +499,9 @@ export default function Dashboard() {
                   <span className="chip">{SEGMENTS[c.segment_key]?.label}</span>
                 </td>
                 <td>
-                  {c.R} · {c.F} · {c.M}
+                  {c.R ?? "–"} · {c.F ?? "–"} · {c.M ?? "–"}
                 </td>
-                <td className="num">{c.recency_days === 0 ? "bugün" : `${c.recency_days} gün`}</td>
+                <td className="num">{fmtRecency(c.recency_days, { compact: true })}</td>
                 <td className="num">{c.frequency}</td>
                 <td className="num">{unit(c.monetary)}</td>
                 <td className={`num ${c.trend.pct === null ? "" : c.trend.pct < 0 ? "down" : "up"}`}>
@@ -518,10 +520,10 @@ export default function Dashboard() {
         <summary>Nasıl hesaplanıyor?</summary>
         <ul>
           <li>
-            <b>RFM:</b> Her müşteri; son alımdan bu yana geçen gün (R), alım yapılan gün sayısı (F) ve toplam ciro (M) bakımından diğer müşterilere göre 1–5 arası puanlanır.
+            <b>RFM:</b> Pozitif satışı olan müşteriler; son alımdan bu yana geçen gün (R), alım yapılan gün sayısı (F) ve toplam ciro (M) bakımından birbirlerine göre 1–5 arası puanlanır.
           </li>
           <li>
-            <b>Segment:</b> Puanların birleşiminden Şampiyon, Sadık, Risk altında, Yeni, Standart veya Pasif segmenti çıkar.
+            <b>Segment:</b> Puanların birleşiminden Şampiyon, Sadık, Risk altında, Yeni, Standart veya Pasif segmenti çıkar. Yüklenen veride pozitif satışı olmayanlar “Alım geçmişi yok” olarak gösterilir; puan ve satış takibi önerisi üretilmez.
           </li>
           <li>
             <b>Trend:</b> Son 90 günün alımı önceki 90 günle karşılaştırılır; %30 ve üzeri düşüş “düşüşte” sayılır.

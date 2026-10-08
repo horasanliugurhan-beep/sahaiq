@@ -85,6 +85,12 @@ export default function Dashboard() {
   }, [result, source.kind]);
 
   async function copyBriefing() {
+    // Recheck at the action boundary; a cached badge is not authorization.
+    if (!validateBriefingText(briefing.text, briefing.b).ok) {
+      setCopied("Doğrulanmayan brifing kopyalanamaz");
+      setTimeout(() => setCopied(""), 2500);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(briefing.text);
       setCopied("Kopyalandı");
@@ -464,10 +470,10 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="actions-row">
-            <span className={`chip ${briefing.check.ok ? "okchip" : "badchip"}`} title="Metindeki her rakam hesaplanan veride var mı?">
-              {briefing.check.ok ? "✓ Tüm rakamlar veriden" : `Doğrulanmayan rakam: ${briefing.check.unknown.join(", ")}`}
+            <span className={`chip ${briefing.check.ok ? "okchip" : "badchip"}`} title="Metin, hesaplanan brifingle müşteri ve olgu sırası korunarak eşleşiyor mu?">
+              {briefing.check.ok ? "✓ Tüm rakamlar veriden" : `Doğrulanmayan metin: ${briefing.check.unknown.join(", ")}`}
             </span>
-            <button className="btn" onClick={copyBriefing}>
+            <button className="btn" onClick={copyBriefing} disabled={!briefing.check.ok}>
               {copied || "Metni kopyala"}
             </button>
           </div>

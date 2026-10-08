@@ -29,7 +29,7 @@ test("the generated text passes its own number guard", () => {
 test("invented figures, sizes or prices are caught", () => {
   const b = buildBriefing(result, { today: "2026-09-30" });
   const t = briefingToText(b);
-  for (const fake of ["Michelin R21'de özel fiyat", "22.000 TL potansiyel", "Ciro %79 düştü", "4'lü takım"]) {
+  for (const fake of ["Kurgu R21'de özel fiyat", "22.000 TL potansiyel", "Ciro %79 düştü", "4'lü takım"]) {
     const r = validateBriefingText(t + "\n" + fake, b);
     assert.equal(r.ok, false, fake);
   }
@@ -43,9 +43,11 @@ test("product names with digits are allowed when they come from the data", () =>
 
 test("no offers, prices or campaigns and no figures in dealer openers", () => {
   const b = buildBriefing(result, { today: "2026-09-30" });
-  const t = briefingToText(b).toLocaleLowerCase("tr");
-  for (const w of ["kampanya", "özel fiyat", "indirim", "teklif:"]) assert.equal(t.includes(w) && !t.includes("kampanya bilgisi içermez"), false, w);
-  for (const e of [...b.today, ...b.week]) if (e.opener) assert.doesNotMatch(e.opener, /\d/);
+  // Exclude only the fixed final disclaimer from this content assertion; it
+  // must never exempt a promise elsewhere in the document.
+  const t = briefingToText(b).split("\n").slice(0, -1).join("\n").toLocaleLowerCase("tr");
+  for (const w of ["kampanya", "özel fiyat", "indirim", "teklif:"]) assert.equal(t.includes(w), false, w);
+  for (const e of [...b.today, ...b.week]) if (e.opener) assert.doesNotMatch(e.opener, /\p{N}/u);
 });
 
 test("openers vary within a section", () => {

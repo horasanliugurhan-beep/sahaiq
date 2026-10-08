@@ -21,7 +21,7 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
   - Copy-paste from any ERP, BI or spreadsheet screen
   - Common ERP header vocabulary (Cari Kodu, Cari Hesap Ünvanı, Evrak Tarihi, Net Tutar, Stok Adı…) maps automatically; any other layout is mapped once and remembered in that browser
 - Normalized customer/sales schema
-- Morning briefing preview built only from computed results: who to call today, follow-ups and a summary, with varied, respectful openers and no prices, stock or campaign promises. A number guard (`validateBriefingText`) rejects any text containing a figure — by kind: money, %, days, date, count — that is not in the data, so a future AI rewrite can be checked before it is sent
+- Morning briefing preview built only from computed results: who to call today, follow-ups and a summary, with varied, respectful openers and no prices, stock or campaign promises. A fail-closed briefing guard (`validateBriefingText`) matches complete generated facts in document/customer order, preserving number types, signs, scales, full dates and relationships. Only the deterministic document (apart from ASCII indentation, blank lines and CRLF) or one exact standalone customer/product reference is accepted; arbitrary AI paraphrases are not supported
 - Fail-closed data checks (from the observer pilot): bad dates/numbers, one code with two names, broken CSV structure stop the analysis and are listed by line number; duplicates, blank amounts and returns are flagged, never silently changed; money is summed in kuruş; stale exports are labelled with their own date
 - Connector foundation for external data sources
 - Reference BI connector: Qlik Cloud (REST + QIX engine)
@@ -57,8 +57,26 @@ rounded to kuruş; changes larger than the floating-point tolerance produce a
 visible warning with the number of affected cells and the first source row.
 CSV, pasted text and Excel text cells still reject amounts with more than two
 decimal places. Quantities must be safe integers and are never rounded.
-Customer names and products must be single-line values without control
-characters; invalid cells block the import and are reported by source row.
+Customer names and products must be single-line values without control or
+invisible Unicode format/direction characters (including zero-width space,
+soft hyphen and BOM). Import and briefing validation share the same character
+policy. Invalid cells block the import and are reported by source row before
+trimming can hide an edge character.
+
+## Briefing validation boundary
+
+`validateBriefingText(text, b)` requires the trusted result of `buildBriefing()`
+as its reference. It does not recompute or authenticate analytics supplied in
+`b` by another caller. Never replace the reference with AI-produced content.
+Names and products are matched only in their original literal positions, never
+globally stripped. Control, line-separator and invisible format/direction
+characters are rejected independently of import validation. Dealer openers must
+be exact, code-owned, numeric-free phrases; extra price, stock or campaign claims
+fail even if the fixed disclaimer is still present. The legacy `unknown` array
+now contains diagnostics for any unverifiable content, including nonnumeric
+claims. The copy button is disabled after failed validation; its handler also
+revalidates immediately before writing to the clipboard. Supporting other
+rewrite formats requires a separate explicit contract.
 
 ## Data connectors
 

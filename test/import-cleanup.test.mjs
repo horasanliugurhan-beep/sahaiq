@@ -154,3 +154,31 @@ test("real XLSX invalid money, quantity, multiline fields and text money fail wi
   assert.deepEqual(check.errors.map(({ row, field }) => [row, field]), [[4, "revenue"], [5, "revenue"], [6, "quantity"], [7, "customer_name"], [8, "product"], [9, "revenue"], [10, "customer_name"], [11, "product"]]);
   assert.equal(check.rows.length, 0);
 });
+
+for (const field of ["customer_name", "product"]) {
+  test(`PR #16 ${field}: invisible format characters fail at import with physical source rows`, () => {
+    // Include the review's ZWSP, soft hyphen and BOM, bidi controls and a
+    // supplementary-plane Cf. Edge BOM must be rejected before trim erases it.
+    for (const code of [0x200b, 0x00ad, 0xfeff, 0x202e, 0x2066, 0x200c, 0x200d, 0xe0001]) {
+      const char = String.fromCodePoint(code);
+      for (const value of [`${char}Kurgu`, `Kurgu${char}Alan`, `Kurgu${char}`, char]) {
+        const bad = { ...baseRow, customer_id: "SYN-002", [field]: value };
+        const csv = parseTable(`\n\n${toCsv([baseRow, bad])}`);
+        const tsv = parseTable(`\n\n${[headers.join("\t"), ...[baseRow, bad].map((row) => headers.map((key) => row[key]).join("\t"))].join("\n")}`);
+        const excel = sheetToTable([
+          ["Kurgusal kontrol raporu"], [], headers,
+          headers.map((key) => baseRow[key]), [], headers.map((key) => bad[key]),
+        ]);
+        for (const [table, expectedRow, locale] of [[csv, 5, "en-US"], [tsv, 5, "en-US"], [excel, 6, "tr-TR"], [tableOf([baseRow, bad], [7, 19]), 19, "tr-TR"]]) {
+          const check = validateDataset(table, autoMap(table.headers), { locale });
+          assert.equal(check.errorCount, 1, `${field}: U+${code.toString(16)} at row ${expectedRow}`);
+          assert.equal(check.errors[0].field, field);
+          assert.equal(check.errors[0].row, expectedRow);
+          assert.match(check.errors[0].message, /görünmez/);
+          assert.equal(check.rows.length, 1);
+          assert.equal(check.rows[0].customer_id, "SYN-001");
+        }
+      }
+    }
+  });
+}

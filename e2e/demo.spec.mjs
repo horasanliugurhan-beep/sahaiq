@@ -92,3 +92,21 @@ test("no critical or serious accessibility violations", async ({ page }) => {
   const blocking = violations.filter((v) => ["critical", "serious"].includes(v.impact));
   expect(blocking.map((v) => `${v.impact}: ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);
 });
+
+test("verified briefing opens in WhatsApp with the exact text and saves as .txt", async ({ page, context }) => {
+  const expected = await page.locator(".brief-text").textContent();
+  // Don't load WhatsApp in tests; the URL is what matters.
+  await context.route(/^https:\/\/(wa\.me|api\.whatsapp\.com)\//, (route) => route.fulfill({ status: 200, body: "" }));
+  const [popup] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("button", { name: "WhatsApp'ta aç" }).click(),
+  ]);
+  await popup.waitForURL(/wa\.me/);
+  const url = new URL(popup.url());
+  await popup.close();
+  expect(url.hostname).toMatch(/(^|\.)wa\.me$|whatsapp\.com$/);
+  expect(url.searchParams.get("text")).toBe(expected);
+
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: ".txt indir" }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^sahaiq-brifing-\d{4}-\d{2}-\d{2}\.txt$/);
+});

@@ -22,6 +22,7 @@ Built by **Uğurhan Horasanlı** as an open, vendor-neutral sales intelligence t
   - Common ERP header vocabulary (Cari Kodu, Cari Hesap Ünvanı, Evrak Tarihi, Net Tutar, Stok Adı…) maps automatically; any other layout is mapped once and remembered in that browser
 - Normalized customer/sales schema
 - Morning briefing preview built only from computed results: who to call today, follow-ups and a summary, with varied, respectful openers and no prices, stock or campaign promises. A fail-closed briefing guard (`validateBriefingText`) matches complete generated facts in document/customer order, preserving number types, signs, scales, full dates and relationships. Only the deterministic document (apart from ASCII indentation, blank lines and CRLF) or one exact standalone customer/product reference is accepted; arbitrary AI paraphrases are not supported
+- Sending without a server: a verified briefing can be copied, opened in WhatsApp (the user picks the recipient) or saved as `.txt`. Every action re-validates the text first; SahaIQ itself never sends anything.
 - Fail-closed data checks (from the observer pilot): bad dates/numbers, one code with two names, broken CSV structure stop the analysis and are listed by line number; duplicates, blank amounts and returns are flagged, never silently changed; money is summed in kuruş; stale exports are labelled with their own date
 - Connector foundation for external data sources
 - Reference BI connector: Qlik Cloud (REST + QIX engine)

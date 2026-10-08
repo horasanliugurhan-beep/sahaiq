@@ -126,10 +126,13 @@ for (const [returned, pct] of [[-50, -100], [-150, -200]]) {
     assert.equal(customer.trend.previousPurchaseDays, 1);
     const decline = result.actions.find((a) => a.ruleKey === "sales-decline");
     assert.ok(decline);
-    assert.match(decline.reason, /net satış/);
+    assert.equal(decline.reason, "Son 90 günde iadeler alımları karşıladı; net satış sıfıra ya da eksiye indi");
+    assert.doesNotMatch(decline.reason, /%/);
     assert.doesNotMatch(decline.reason, /hiç alım yok/);
     const briefing = buildBriefing(result);
     assert.doesNotMatch(briefingToText(briefing), /hiç alım yok/);
+    assert.equal(briefing.today[0].reason, decline.reason);
+    assert.ok(briefing.today[0].facts.some((fact) => fact.endsWith(`(-%${Math.abs(pct)})`)));
     assert.equal(validateBriefingText(briefingToText(briefing), briefing).ok, true);
     for (const segment_key of ["at_risk", "dormant"]) {
       const actions = evaluateRules({ customer: { id: customer.id, name: customer.name }, rfm: { ...customer, segment_key }, trend: customer.trend });
@@ -161,7 +164,7 @@ test("#4 custom trend windows use the same period in the action and briefing fac
     "SYN-01;Kurgu Bayi;2026-06-29;1;50",
     "SYN-01;Kurgu Bayi;2026-06-30;-2;-100",
   ]).rows, { trendWindowDays: 30 });
-  assert.match(result.actions.find((a) => a.ruleKey === "sales-decline").reason, /Son 30 günde net satış önceki 30 güne/);
+  assert.match(result.actions.find((a) => a.ruleKey === "sales-decline").reason, /Son 30 günde iadeler alımları karşıladı; net satış sıfıra ya da eksiye indi/);
   const briefing = buildBriefing(result);
   assert.ok(briefing.today[0].facts.some((fact) => fact.startsWith("Son 30 gün ")));
   assert.doesNotMatch(briefingToText(briefing), /90 gün/);
@@ -193,4 +196,15 @@ test("#4 quantity-basis same-day sale and return keep the positive-purchase evid
   assert.equal(result.customers[0].trend.recent, 0);
   assert.match(result.actions.find((a) => a.ruleKey === "sales-decline").reason, /net satış/);
   assert.doesNotMatch(briefingToText(buildBriefing(result)), /hiç alım yok/);
+});
+
+test("#4 returns that leave positive net sales retain the percentage explanation", () => {
+  const result = analyze(importSales([
+    "SYN-01;Kurgu Bayi;2026-03-01;1;100",
+    "SYN-01;Kurgu Bayi;2026-06-29;1;50",
+    "SYN-01;Kurgu Bayi;2026-06-30;-1;-10",
+  ]).rows);
+  assert.equal(result.customers[0].trend.recent, 40);
+  assert.equal(result.actions.find((a) => a.ruleKey === "sales-decline").reason,
+    "Son 90 günde net satış önceki 90 güne göre %60 düştü (iadeler dahil)");
 });

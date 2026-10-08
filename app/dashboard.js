@@ -405,7 +405,7 @@ export default function Dashboard() {
         <div className="kpi alertish">
           <small>Bugün aranacak</small>
           <div className="v">{fmtInt(k.highPriority)}</div>
-          <div className="s">yüksek öncelikli müşteri</div>
+          <div className="s">yüksek öncelikli · listede toplam {fmtInt(callList.length)}</div>
         </div>
         <div className="kpi">
           <small>Risk altındaki {result.basis === "revenue" ? "ciro" : "hacim"}</small>
@@ -422,7 +422,10 @@ export default function Dashboard() {
       <div className="grid">
         <section aria-label="Arama listesi">
           <h2>Bugün kimi aramalı?</h2>
-          <p className="sub">Önceliğe ve müşterinin değerine göre sıralı. Her önerinin gerekçesi yanında.</p>
+          <p className="sub">
+            {fmtInt(callList.length)} müşteri: {fmtInt(callList.filter((c) => c.priority === 3).length)} yüksek, {fmtInt(callList.filter((c) => c.priority === 2).length)} orta,{" "}
+            {fmtInt(callList.filter((c) => c.priority < 2).length)} düşük öncelik. Önceliğe ve müşterinin değerine göre sıralı; her önerinin gerekçesi yanında.
+          </p>
           {callList.length === 0 && <div className="call">Şu an aksiyon gerektiren müşteri yok.</div>}
           {visibleCalls.map((c) => {
             const cust = result.customers.find((x) => x.id === c.customerId);
@@ -577,7 +580,9 @@ export default function Dashboard() {
       </details>
 
       <footer>
-        <span>SahaIQ · Geliştiren: Uğurhan Horasanlı</span>
+        <span>
+          SahaIQ · Geliştiren: Uğurhan Horasanlı · <a href="mailto:info@sahaiq.app">info@sahaiq.app</a> · <a href="https://sahaiq.app/gizlilik.html">Gizlilik</a>
+        </span>
         <span>Demo verisindeki tüm firma, marka ve rakamlar kurgusaldır.</span>
       </footer>
     </div>

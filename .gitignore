@@ -17,6 +17,7 @@ data/backups/
 *.xlsx
 # This exact workbook is synthetic and reproducible; other exports stay ignored.
 !test/fixtures/import-cleanup.xlsx
+!test/fixtures/e2e-kurgu.xlsx
 *.xls
 *.csv
 test-results/

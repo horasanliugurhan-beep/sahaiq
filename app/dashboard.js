@@ -478,7 +478,7 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <pre className="brief-text">{briefing.text}</pre>
+        <pre className="brief-text" tabIndex={0} aria-label="Brifing metni">{briefing.text}</pre>
       </section>
 
       <div className="table-head">

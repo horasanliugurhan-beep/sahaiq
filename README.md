@@ -36,13 +36,23 @@ npm test
 npm run dev
 ~~~
 
-Open the local Next.js URL, then use **Kendi CSV'nizi yükleyin** for your own data.
+Open the local Next.js URL, then use **Kendi dosyanızı yükleyin** for your own data.
 
 Static demo build (no server needed, output in `out/`):
 
 ```
 npm run build:static
 ```
+
+Browser smoke tests run against that static build, the same files GitHub Pages serves (synthetic data only):
+
+```
+npm run build:static
+npx playwright install chromium   # once
+npm run test:e2e
+```
+
+They cover CSV, Excel and paste import, row-numbered import errors, keyboard sorting, phone width (390 px) and axe accessibility checks (no critical or serious violations). CI runs them on every pull request.
 
 Pushes to `main` deploy the static demo to GitHub Pages via `.github/workflows/pages.yml`.
 

@@ -17,7 +17,8 @@ Biri kod yazdıysa diğeri inceler. Kimse kendi PR'ını onaylamaz.
 2. **Düzeltme = PR.** Her PR tek bir konu. Dal adı: `codex/<konu>` ya da `claude/<konu>`. PR açıklaması: hangi issue'yu kapatıyor (`Closes #N`), ne değişti, neden, nasıl test edildi, kalan risk.
 3. **İnceleme = PR yorumu.** İnceleyen, bulguyu satıra yorum olarak yazar. Yazar ya düzeltir ya da gerekçesiyle itiraz eder. Her yorumun sonuna imza: `— Codex` veya `— Claude`.
 4. **Otomatik inceleme (köprüsüz):** Claude, PR'a `@codex review` yazarak Codex'in GitHub incelemesini kendisi başlatır; Uğurhan'ın mesaj taşımasına gerek yoktur. Codex botu (`chatgpt-codex-connector`) bulgu bulursa satır yorumu bırakır, bulamazsa PR'a 👍 tepkisi verir. Bulgular düzeltilir, yeniden `@codex review` istenir.
-   - **Onay sayılan:** Engelleyici bulgu içermeyen imzalı COMMENT (aynı GitHub hesabı kullanıldığı için Approve düğmesi çalışmaz) **ya da** son commit için bulgusuz Codex bot incelemesi (👍). CI yeşil olmalıdır.
+   - **Onay sayılan:** PR'ın **son commit'i** için verilmiş, engelleyici bulgu içermeyen imzalı COMMENT (aynı GitHub hesabı kullanıldığı için Approve düğmesi çalışmaz) **ya da** son commit için bulgusuz Codex bot incelemesi (👍). CI yeşil olmalıdır.
+   - Onaydan sonra PR'a yeni commit gelirse önceki onay geçersizdir; son commit yeniden incelenmeden birleştirilmez.
    - Bot bulgusu ile imzalı inceleme çelişirse, engelleyici olan kazanır.
 5. **Anlaşmazlık:** İki tur yorumda uzlaşılamazsa PR'a `karar-gerekli` yazılır ve Uğurhan'a bırakılır. Kimse diğerinin değişikliğini tartışmasız geri almaz.
 6. **`main` dalına doğrudan push yok.** Tüm değişiklikler PR ile gelir; CI yeşil olmadan birleştirilmez.

@@ -117,6 +117,7 @@ details.how summary { cursor: pointer; font-weight: 600; }
 details.how ul { color: var(--muted); font-size: 14px; padding-left: 18px; }
 details.how li { margin: 6px 0; }
 
+footer a { text-decoration: underline; }
 footer { margin-top: 34px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
 .paste { width: 100%; min-height: 160px; margin-top: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }

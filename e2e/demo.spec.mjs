@@ -116,3 +116,13 @@ test("verified briefing opens in WhatsApp with the exact text and saves as .txt"
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: ".txt indir" }).click()]);
   expect(download.suggestedFilename()).toMatch(/^sahaiq-brifing-\d{4}-\d{2}-\d{2}\.txt$/);
 });
+
+test("demo names are visibly fictional and list counts are explained", async ({ page }) => {
+  const names = await page.locator(".call-name").allTextContents();
+  expect(names.length).toBeGreaterThan(0);
+  for (const n of names) expect(n).toMatch(/^Kurgu /);
+  await expect(page.locator('section[aria-label="Arama listesi"] .sub')).toContainText("29 müşteri: 17 yüksek");
+  await expect(page.locator(".brief-text")).toContainText("BUGÜN ARA · yüksek öncelik (ilk 5 / 17)");
+  await expect(page.locator('footer a[href="mailto:info@sahaiq.app"]')).toBeVisible();
+});
+

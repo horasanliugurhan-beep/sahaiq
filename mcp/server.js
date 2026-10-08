@@ -9,6 +9,10 @@ export const SERVER_INFO = { name: "sahaiq", title: "SahaIQ (kurgusal demo veris
 // Newest first. We answer with the client's version when we know it.
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const MAX_BODY = 64 * 1024;
+// Origin policy (MCP Streamable HTTP: servers must validate Origin; invalid → 403).
+// Claude's connectors call from Anthropic's servers without an Origin header, so
+// a missing Origin is allowed. A present Origin must be one of these exactly.
+export const ALLOWED_ORIGINS = ["https://claude.ai", "https://claude.com"];
 
 const INSTRUCTIONS =
   "SahaIQ, saha satış ekipleri için öncelik ve satış analitiği hesaplar. Bu sunucu yalnızca KURGUSAL demo verisi verir; " +
@@ -85,8 +89,14 @@ export async function handleHttp(request) {
     return new Response("SahaIQ MCP sunucusu (kurgusal demo verisi). MCP uç noktası: /mcp\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
   }
   if (url.pathname !== "/mcp") return json({ error: "not found" }, 404);
+  const origin = request.headers.get("origin");
+  if (origin !== null && !ALLOWED_ORIGINS.includes(origin)) return json(fail(null, -32600, "Origin not allowed"), 403);
   // Stateless server: no SSE stream to open and no session to delete.
   if (request.method !== "POST") return json({ error: "method not allowed" }, 405, { allow: "POST" });
+  // After initialize, clients send the negotiated version; an unknown one is a 400.
+  // A missing header is allowed (the spec says to assume an older version).
+  const version = request.headers.get("mcp-protocol-version");
+  if (version !== null && !PROTOCOL_VERSIONS.includes(version)) return json(fail(null, -32600, "Unsupported MCP-Protocol-Version"), 400);
   if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) return json(fail(null, -32700, "Content-Type must be application/json"), 415);
   const declared = Number(request.headers.get("content-length") || 0);
   if (declared > MAX_BODY) return json(fail(null, -32600, "Request too large"), 413);

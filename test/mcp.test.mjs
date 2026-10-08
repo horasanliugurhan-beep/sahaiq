@@ -4,6 +4,9 @@ import { handleHttp, handleMessage, PROTOCOL_VERSIONS } from "../mcp/server.js";
 import { TOOLS } from "../mcp/tools.js";
 import { analyze } from "../lib/analyze.js";
 import { generateSampleRows } from "../lib/sample-data.js";
+import { readFileSync } from "node:fs";
+import { createLocalServer } from "../mcp/serve-local.mjs";
+import { connect } from "node:net";
 
 const demo = analyze(generateSampleRows());
 const call = (name, args) => handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }).result;
@@ -44,6 +47,14 @@ test("JSON-RPC edge cases", () => {
   assert.equal(handleMessage({ jsonrpc: "2.0", id: 4, method: "resources/list" }).error.code, -32601);
   assert.equal(handleMessage({ id: 5, method: "ping" }).error.code, -32600);
   assert.equal(handleMessage({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "drop_table" } }).error.code, -32602);
+});
+
+test("tool list and schemas match the committed contract exactly", () => {
+  // Any change to names, descriptions, required fields, enums or limits must
+  // update test/fixtures/mcp-tools.json in the same PR, on purpose.
+  const { tools } = handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }).result;
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/mcp-tools.json", import.meta.url), "utf8"));
+  assert.deepEqual(tools, fixture);
 });
 
 // --- numbers are the demo's numbers -------------------------------------------
@@ -127,6 +138,7 @@ test("bad input is a tool error with a plain message, never a crash or a stack",
     ["get_kpis", JSON.parse('{"__proto__":{"x":1}}')],
     ["get_kpis", JSON.parse('{"hasOwnProperty":1}')],
     ["get_call_list", JSON.parse('{"valueOf":1}')],
+    ["get_kpis", null],
   ]) {
     const r = call(name, args);
     assert.equal(r.isError, true, `${name} ${JSON.stringify(args)}`);
@@ -178,3 +190,49 @@ test("tools are pure: repeated calls give identical results", () => {
     assert.deepEqual(out(t.name, args), out(t.name, args), t.name);
   }
 });
+
+// --- origin, protocol version, local adapter --------------------------------
+
+const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+
+test("Origin: absent is allowed (server-to-server), allowlisted is allowed, anything else is 403", async () => {
+  assert.equal((await post(ping)).status, 200);
+  assert.equal((await post(ping, { origin: "https://claude.ai" })).status, 200);
+  for (const o of ["https://attacker.example", "null", "http://claude.ai", "https://claude.ai.evil.example", "https://claude.ai:8443"]) {
+    assert.equal((await post(ping, { origin: o })).status, 403, o);
+  }
+  // Checked before anything else, including method.
+  assert.equal((await handleHttp(new Request("http://x/mcp", { headers: { origin: "https://attacker.example" } }))).status, 403);
+});
+
+test("MCP-Protocol-Version header: supported or missing is fine, unknown is 400", async () => {
+  assert.equal((await post(ping, { "mcp-protocol-version": "2025-06-18" })).status, 200);
+  assert.equal((await post(ping)).status, 200);
+  assert.equal((await post(ping, { "mcp-protocol-version": "1999-01-01" })).status, 400);
+  assert.equal((await post(ping, { "mcp-protocol-version": "" })).status, 400);
+});
+
+test("local server survives a client that disconnects mid-request", async () => {
+  const server = createLocalServer();
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const { port } = server.address();
+  try {
+    await new Promise((resolve) => {
+      const s = connect(port, "127.0.0.1", () => {
+        s.write("POST /mcp HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n{\"a\":");
+        setTimeout(() => { s.destroy(); resolve(); }, 50);
+      });
+      s.on("error", () => {});
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const res = await fetch(`http://127.0.0.1:${port}/mcp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(ping) });
+    assert.equal(res.status, 200);
+    // Oversized upload through the adapter is cut off, not buffered.
+    const big = await fetch(`http://127.0.0.1:${port}/mcp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ x: "ş".repeat(40000) }) });
+    assert.equal(big.status, 413);
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((r) => server.close(r));
+  }
+});
+

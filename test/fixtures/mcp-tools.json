@@ -1,0 +1,182 @@
+[
+  {
+    "name": "get_kpis",
+    "title": "Özet göstergeler",
+    "description": "Kurgusal demo verisinin özet göstergeleri: müşteri sayısı, toplam ciro, yüksek öncelikli müşteri sayısı, risk altındaki ciro ve payı, cironun %80'ini yapan müşteri sayısı (Pareto). Rakamlar SahaIQ'nun test edilmiş hesabından gelir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Özet göstergeler",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_call_list",
+    "title": "Arama listesi",
+    "description": "Bugün kimin aranacağına dair gerekçeli öncelik listesi (yüksek, orta, düşük). Sıra, SahaIQ'nun öncelik ve müşteri değeri kurallarından gelir; her kayıtta gerekçe ve önerilen sonraki adım var.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": [
+            "yüksek",
+            "orta",
+            "düşük"
+          ],
+          "description": "Yalnızca bu öncelik."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "En fazla kaç kayıt (1–100)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Arama listesi",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_customers",
+    "title": "Müşteri listesi",
+    "description": "Müşteriler; RFM puanı ve segmenti, son alım, toplam ciro ve son 90 günün önceki 90 güne göre değişimiyle. Segment ve bölgeye göre süzülebilir, ciroya, değişime veya son alıma göre sıralanabilir.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "segment": {
+          "type": "string",
+          "enum": [
+            "champion",
+            "loyal",
+            "at_risk",
+            "new",
+            "standard",
+            "dormant",
+            "no_purchase"
+          ],
+          "description": "RFM segmenti."
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Bölge adı (ör. Kuzey)."
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "total_desc",
+            "change_asc",
+            "change_desc",
+            "recency_desc",
+            "name_asc"
+          ],
+          "description": "Sıralama. change_asc: en çok düşenler önce."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "En fazla kaç kayıt (1–100)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Müşteri listesi",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_customer",
+    "title": "Tek müşteri",
+    "description": "Bir müşterinin ayrıntısı: segment, RFM, son alım, trend, en çok aldığı ürün ve arama listesindeki gerekçeleri. id get_customers veya get_call_list sonucundan alınır (ör. D016).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Müşteri kodu."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Tek müşteri",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_segment_summary",
+    "title": "Segment özeti",
+    "description": "Her RFM segmentindeki müşteri sayısı, toplam cirosu ve toplam içindeki payı, segmentin anlamıyla birlikte.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Segment özeti",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_sales_timeseries",
+    "title": "Satış zaman serisi",
+    "description": "Net satışın (iadeler düşülmüş) haftalık veya aylık seyri; tüm müşteriler ya da tek müşteri için. Grafikler için.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "granularity": {
+          "type": "string",
+          "enum": [
+            "week",
+            "month"
+          ],
+          "description": "Haftalık (pazartesi başlangıçlı) ya da aylık."
+        },
+        "customer_id": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Verilirse yalnızca bu müşteri."
+        }
+      },
+      "required": [
+        "granularity"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Satış zaman serisi",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  }
+]

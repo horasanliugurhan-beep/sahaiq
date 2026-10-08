@@ -37,3 +37,11 @@ Claude'da bağlayıcı ayarlarından özel (custom) bir bağlayıcı ekleyip URL
 ## Protokol
 
 Durumsuz Streamable HTTP; yalnızca `POST /mcp`, JSON yanıt. Desteklenenler: `initialize`, `ping`, `tools/list`, `tools/call`. Bağımlılık yoktur; resmi MCP istemci kütüphanesiyle ve Cloudflare `workerd` çalışma ortamında denenmiştir.
+
+Güvenlik ve sağlamlık:
+- **Origin:** Başlık yoksa izin verilir; Claude bağlayıcıları sunucudan sunucuya çağırır. Varsa yalnızca `https://claude.ai` ve `https://claude.com` kabul edilir, diğerleri 403 alır.
+- **MCP-Protocol-Version:** Başlık yoksa izin verilir. Bilinen sürümler kabul edilir; bilinmeyen sürüm 400 alır.
+- **Gövde:** Akış halinde okunur ve bayt olarak sayılır; 64 KB aşılınca okuma kesilir ve 413 döner. Geçersiz UTF-8 400 alır.
+- **Girdi:** Şemalar katıdır; yalnızca kendi alanları kabul edilir, `arguments: null` reddedilir.
+- **Kopan bağlantı:** Yerel sunucu, istemci bağlantıyı yarıda kesince kapanmaz.
+- **Sözleşme:** Araç listesi ve şemalar `test/fixtures/mcp-tools.json` ile birebir karşılaştırılır; bilerek değiştirilmedikçe test düşer.

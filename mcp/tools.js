@@ -85,6 +85,8 @@ function callView(a, rank) {
 class ToolInputError extends Error {}
 
 function check(schema, args) {
+  // Omitted arguments mean "none"; an explicit null is not an object and is rejected.
+  if (args === null) throw new ToolInputError("Argümanlar bir nesne olmalı.");
   const input = args ?? {};
   if (typeof input !== "object" || Array.isArray(input)) throw new ToolInputError("Argümanlar bir nesne olmalı.");
   const props = schema.properties || {};

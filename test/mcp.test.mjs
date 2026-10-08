@@ -1,0 +1,157 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { handleHttp, handleMessage, PROTOCOL_VERSIONS } from "../mcp/server.js";
+import { TOOLS } from "../mcp/tools.js";
+import { analyze } from "../lib/analyze.js";
+import { generateSampleRows } from "../lib/sample-data.js";
+
+const demo = analyze(generateSampleRows());
+const call = (name, args) => handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }).result;
+const out = (name, args) => call(name, args).structuredContent;
+const post = (body, headers = {}) =>
+  handleHttp(new Request("http://x/mcp", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) }));
+
+// --- contract ---------------------------------------------------------------
+
+test("tool contract is stable: names, read-only annotations, strict schemas", () => {
+  const { tools } = handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/list" }).result;
+  assert.deepEqual(tools.map((t) => t.name), ["get_kpis", "get_call_list", "get_customers", "get_customer", "get_segment_summary", "get_sales_timeseries"]);
+  for (const t of tools) {
+    assert.equal(t.annotations.readOnlyHint, true, t.name);
+    assert.equal(t.annotations.destructiveHint, false, t.name);
+    assert.equal(t.annotations.openWorldHint, false, t.name);
+    assert.equal(t.inputSchema.type, "object", t.name);
+    assert.equal(t.inputSchema.additionalProperties, false, t.name);
+    for (const [k, p] of Object.entries(t.inputSchema.properties)) {
+      if (p.type === "integer") assert.ok(p.maximum <= 100, `${t.name}.${k} must be capped`);
+      if (p.type === "string" && !p.enum) assert.ok(p.maxLength <= 40, `${t.name}.${k} must be length-capped`);
+    }
+  }
+});
+
+test("initialize negotiates a known protocol version and declares tools only", () => {
+  const r = handleMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } } }).result;
+  assert.equal(r.protocolVersion, "2025-06-18");
+  assert.deepEqual(Object.keys(r.capabilities), ["tools"]);
+  assert.match(r.instructions, /KURGUSAL/);
+  const unknown = handleMessage({ jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "1999-01-01" } }).result;
+  assert.equal(unknown.protocolVersion, PROTOCOL_VERSIONS[0]);
+});
+
+test("JSON-RPC edge cases", () => {
+  assert.equal(handleMessage({ jsonrpc: "2.0", method: "notifications/initialized" }), null);
+  assert.deepEqual(handleMessage({ jsonrpc: "2.0", id: 3, method: "ping" }).result, {});
+  assert.equal(handleMessage({ jsonrpc: "2.0", id: 4, method: "resources/list" }).error.code, -32601);
+  assert.equal(handleMessage({ id: 5, method: "ping" }).error.code, -32600);
+  assert.equal(handleMessage({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "drop_table" } }).error.code, -32602);
+});
+
+// --- numbers are the demo's numbers -------------------------------------------
+
+test("KPIs equal the demo exactly", () => {
+  const k = out("get_kpis");
+  assert.equal(k.customers, 40);
+  assert.equal(k.customers, demo.kpis.accounts);
+  assert.equal(k.total.kurus, Math.round(demo.kpis.total * 100));
+  assert.equal(k.callList.total, 29);
+  assert.deepEqual(k.callList.byPriority, { yüksek: 17, orta: 6, düşük: 6 });
+  assert.equal(k.paretoCustomers, demo.kpis.paretoCount);
+  assert.equal(k.asOf, demo.asOf);
+  assert.match(k.source, /kurgusal/);
+});
+
+test("call list keeps the demo order, reasons and priorities", () => {
+  const all = out("get_call_list", { limit: 100 });
+  assert.equal(all.items.length, demo.callList.length);
+  all.items.forEach((x, i) => {
+    assert.equal(x.rank, i + 1);
+    assert.equal(x.customerId, demo.callList[i].customerId);
+    assert.deepEqual(x.reasons, demo.callList[i].reasons.map((r) => r.reason));
+  });
+  const high = out("get_call_list", { priority: "yüksek", limit: 5 });
+  assert.equal(high.matched, 17);
+  assert.equal(high.items.length, 5);
+  assert.ok(high.items.every((x) => x.priority === "yüksek"));
+});
+
+test("customer, segment and timeseries totals reconcile to the KPI total", () => {
+  const totalK = out("get_kpis").total.kurus;
+  const customers = out("get_customers", { limit: 100 });
+  assert.equal(customers.items.reduce((s, c) => s + c.total.kurus, 0), totalK);
+  assert.ok(customers.items.every((c) => c.name.startsWith("Kurgu ")));
+  const seg = out("get_segment_summary");
+  assert.equal(seg.segments.reduce((s, x) => s + x.total.kurus, 0), totalK);
+  assert.equal(seg.segments.reduce((s, x) => s + x.customers, 0), 40);
+  for (const g of ["week", "month"]) {
+    const ts = out("get_sales_timeseries", { granularity: g });
+    assert.equal(ts.points.reduce((s, p) => s + p.net.kurus, 0), totalK, g);
+    assert.deepEqual(ts.points.map((p) => p.period), [...ts.points.map((p) => p.period)].sort(), g);
+  }
+  const one = out("get_customer", { id: "D016" });
+  const series = out("get_sales_timeseries", { granularity: "month", customer_id: "D016" });
+  assert.equal(series.points.reduce((s, p) => s + p.net.kurus, 0), one.customer.total.kurus);
+});
+
+test("sorting by change puts the steepest drops first and missing trends last", () => {
+  const items = out("get_customers", { sort: "change_asc", limit: 100 }).items;
+  const pcts = items.map((c) => c.trend.changePct);
+  const known = pcts.filter((p) => p !== null);
+  assert.deepEqual(known, [...known].sort((a, b) => a - b));
+  assert.ok(pcts.indexOf(null) === -1 || pcts.slice(pcts.indexOf(null)).every((p) => p === null));
+});
+
+test("money text matches kuruş exactly", () => {
+  const c = out("get_customer", { id: "D002" }).customer;
+  const [lira, kr] = c.total.text.replace("₺", "").split(",");
+  assert.equal(Number(lira.replace(/\./g, "")) * 100 + Number(kr), c.total.kurus);
+});
+
+// --- input safety ---------------------------------------------------------------
+
+test("bad input is a tool error with a plain message, never a crash or a stack", () => {
+  for (const [name, args] of [
+    ["get_call_list", { limit: 1000 }],
+    ["get_call_list", { limit: 0 }],
+    ["get_call_list", { limit: 2.5 }],
+    ["get_call_list", { priority: "acil" }],
+    ["get_customers", { region: "x".repeat(500) }],
+    ["get_customers", { segment: "vip" }],
+    ["get_customers", { foo: 1 }],
+    ["get_customer", {}],
+    ["get_customer", { id: "YOK" }],
+    ["get_sales_timeseries", { granularity: "day" }],
+    ["get_sales_timeseries", { granularity: "week", customer_id: "YOK" }],
+    ["get_kpis", ["array"]],
+  ]) {
+    const r = call(name, args);
+    assert.equal(r.isError, true, `${name} ${JSON.stringify(args)}`);
+    assert.doesNotMatch(r.content[0].text, /at |\/home|\.js|Error:/, name);
+  }
+});
+
+// --- HTTP transport ------------------------------------------------------------
+
+test("HTTP: POST JSON works, everything else is refused", async () => {
+  const r = await post({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_kpis", arguments: {} } });
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get("content-type"), /application\/json/);
+  assert.equal((await r.json()).result.structuredContent.customers, 40);
+
+  assert.equal((await post({ jsonrpc: "2.0", method: "notifications/initialized" })).status, 202);
+  assert.equal((await handleHttp(new Request("http://x/mcp"))).status, 405);
+  assert.equal((await handleHttp(new Request("http://x/mcp", { method: "DELETE" }))).status, 405);
+  assert.equal((await handleHttp(new Request("http://x/other", { method: "POST" }))).status, 404);
+  assert.equal((await post("{not json")).status, 400);
+  assert.equal((await post("{}", { "content-type": "text/plain" })).status, 415);
+  assert.equal((await post(JSON.stringify({ x: "y".repeat(70 * 1024) }))).status, 413);
+  assert.equal((await post([])).status, 400);
+  const batch = await post([{ jsonrpc: "2.0", id: 1, method: "ping" }, { jsonrpc: "2.0", method: "notifications/x" }]);
+  assert.equal((await batch.json()).length, 1);
+});
+
+test("tools are pure: repeated calls give identical results", () => {
+  for (const t of TOOLS) {
+    const args = t.name === "get_customer" ? { id: "D016" } : t.name === "get_sales_timeseries" ? { granularity: "month" } : {};
+    assert.deepEqual(out(t.name, args), out(t.name, args), t.name);
+  }
+});

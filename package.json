@@ -9,7 +9,8 @@
     "start": "next start",
     "test": "node --test test/*.test.mjs",
     "build:static": "node scripts/build-static.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "mcp:local": "node mcp/serve-local.mjs"
   },
   "dependencies": {
     "next": "16.4.0",

@@ -1,0 +1,6 @@
+# Cloudflare Workers config for the read-only MCP server (fictional demo data only).
+# Deploy: npx wrangler login && npx wrangler deploy   (see mcp/README.md)
+name = "sahaiq-mcp"
+main = "mcp/worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true

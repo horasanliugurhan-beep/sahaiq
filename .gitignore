@@ -24,3 +24,5 @@ test-results/
 playwright-report/
 .DS_Store
 .api-parked/
+
+.wrangler/

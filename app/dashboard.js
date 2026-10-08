@@ -215,11 +215,20 @@ export default function Dashboard() {
       });
   }, [result, segment, query, sort]);
 
-  const th = (key, label, cls = "") => (
-    <th className={cls} onClick={() => setSort((s) => ({ key, dir: s.key === key ? -s.dir : key === "name" ? 1 : -1 }))}>
-      {label} {sort.key === key ? (sort.dir === 1 ? "▲" : "▼") : ""}
-    </th>
-  );
+  // Sortable header: a real button inside the th, so it is reachable with Tab and
+  // works with Enter/Space; aria-sort announces the current order.
+  const th = (key, label, cls = "") => {
+    const active = sort.key === key;
+    const ariaSort = active ? (sort.dir === 1 ? "ascending" : "descending") : "none";
+    return (
+      <th className={cls} aria-sort={ariaSort}>
+        <button type="button" className="sort" onClick={() => setSort((s) => ({ key, dir: s.key === key ? -s.dir : key === "name" ? 1 : -1 }))}>
+          {label}
+          <span aria-hidden="true">{active ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</span>
+        </button>
+      </th>
+    );
+  };
 
   const k = result.kpis;
 
@@ -330,11 +339,11 @@ export default function Dashboard() {
           <div className="mapping-grid">
             {[...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].map((f) => (
               <div key={f}>
-                <label>
+                <label htmlFor={`map-${f}`}>
                   {FIELD_LABELS[f]}
                   {REQUIRED_FIELDS.includes(f) ? " *" : ""}
                 </label>
-                <select value={pending.map[f] || ""} onChange={(e) => setPending({ ...pending, map: { ...pending.map, [f]: e.target.value } })}>
+                <select id={`map-${f}`} required={REQUIRED_FIELDS.includes(f)} aria-required={REQUIRED_FIELDS.includes(f)} value={pending.map[f] || ""} onChange={(e) => setPending({ ...pending, map: { ...pending.map, [f]: e.target.value } })}>
                   <option value="">— seçin —</option>
                   {pending.table.headers.map((h) => (
                     <option key={h} value={h}>
@@ -345,8 +354,8 @@ export default function Dashboard() {
               </div>
             ))}
             <div>
-              <label>Sayı biçimi *</label>
-              <select value={pending.locale} onChange={(e) => setPending({ ...pending, locale: e.target.value })}>
+              <label htmlFor="map-locale">Sayı biçimi *</label>
+              <select id="map-locale" required aria-required="true" value={pending.locale} onChange={(e) => setPending({ ...pending, locale: e.target.value })}>
                 {Object.entries(LOCALES).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -407,13 +416,13 @@ export default function Dashboard() {
             return (
               <article key={c.customerId} className="call">
                 <div className="call-head">
-                  <div>
+                  <div className="call-main">
                     <div className="call-name">{c.customerName}</div>
                     <div className="call-meta">
                       <span className="chip">{SEGMENTS[c.segmentKey]?.label}</span> · {unit(cust.monetary)} · son alım {fmtRecency(cust.recency_days)}
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
+                  <div className="call-side">
                     <span className={`prio p${c.priority}`}>{PRIORITY_LABEL[c.priority]}</span>
                     <div style={{ marginTop: 6 }}>
                       <Sparkline values={cust.monthly} />

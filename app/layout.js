@@ -1,4 +1,8 @@
 import "./globals.css";
+import localFont from "next/font/local";
+
+// Ship the existing Archivo identity locally; rendering needs no font service.
+const archivo = localFont({ src: "./fonts/Archivo.ttf", variable: "--font-archivo", weight: "100 900", display: "swap" });
 
 export const metadata = {
   title: "SahaIQ Demo · Bugün kimi aramalı?",
@@ -10,12 +14,7 @@ export const viewport = { width: "device-width", initialScale: 1, themeColor: "#
 export default function RootLayout({ children }) {
   return (
     <html lang="tr">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" />
-      </head>
-      <body>{children}</body>
+      <body className={archivo.variable}>{children}</body>
     </html>
   );
 }

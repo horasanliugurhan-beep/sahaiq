@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { analyze, SEGMENTS } from "../lib/analyze.js";
 import { shareTargets } from "../lib/briefing-share.js";
 import { buildBriefing, briefingToText, validateBriefingText } from "../lib/briefing.js";
@@ -37,16 +37,17 @@ const DAY_MS = 86400000;
 
 const PRIORITY_LABEL = { 3: "Yüksek öncelik", 2: "Orta öncelik", 1: "Düşük öncelik" };
 
+function ArrowIcon() {
+  return <svg className="arrow-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 15 15 5M5 5h10v10" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>;
+}
+
 function Sparkline({ values, width = 96, height = 26 }) {
   const max = Math.max(...values, 1);
   const step = width / (values.length - 1 || 1);
   const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - 2 - (v / max) * (height - 4)).toFixed(1)}`).join(" ");
-  const lastHalf = values.slice(6).reduce((a, b) => a + b, 0);
-  const firstHalf = values.slice(0, 6).reduce((a, b) => a + b, 0);
-  const color = lastHalf < firstHalf * 0.7 ? "var(--high)" : "var(--accent)";
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Son 12 ay alım grafiği">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
@@ -74,6 +75,23 @@ export default function Dashboard() {
   const [paste, setPaste] = useState(null); // null = closed, string = textarea content
   const [copied, setCopied] = useState("");
   const fileRef = useRef(null);
+  const importRef = useRef(null);
+  const callsRef = useRef(null);
+  const previousSource = useRef(source);
+  const needsMapping = pending !== null;
+  const isPasting = paste !== null;
+
+  // Keep the active import form discoverable for keyboard and phone users.
+  useEffect(() => {
+    if (needsMapping || isPasting || error) importRef.current?.focus();
+  }, [needsMapping, isPasting, error]);
+
+  useEffect(() => {
+    if (previousSource.current !== source) {
+      previousSource.current = source;
+      callsRef.current?.focus();
+    }
+  }, [source]);
 
   const result = useMemo(() => analyze(source.rows), [source]);
   const unit = result.basis === "revenue" ? fmtMoney : (n) => `${fmtInt(n)} adet`;
@@ -247,33 +265,139 @@ export default function Dashboard() {
 
   return (
     <>
-    <div className="road">
-    <div className="wrap">
-      <nav className="top">
-        <a className="brand" href="https://sahaiq.app" aria-label="SahaIQ ana sayfa">
-          Saha<span>IQ</span>
-        </a>
-        <span className="badge">Canlı demo</span>
-        <div className="links">
-          <a href="https://sahaiq.app">sahaiq.app</a>
-          <a href="https://github.com/horasanliugurhan-beep/sahaiq">Kaynak kod</a>
+    <a className="skip-link" href="#main">İçeriğe geç</a>
+    <header className="road">
+      <div className="wrap">
+        <nav className="top" aria-label="Ana gezinme">
+          <a className="brand" href="https://sahaiq.app" aria-label="SahaIQ ana sayfa">Saha<span>IQ</span></a>
+          <span className="brand-note">Saha için açık bir proje</span>
+          <a className="source-link" href="#veri">Verinizi deneyin <ArrowIcon /></a>
+        </nav>
+        <div className="hero">
+          <p className="eyebrow"><span aria-hidden="true">━━</span> SABAH ROTASI <span className="badge">Canlı demo</span></p>
+          <h1>Bugün önce<br />kimi aramalısınız?</h1>
+          <p>Önce kişi. Sonra gerekçe. Satış verinizden hesaplanan arama öncelikleri.</p>
         </div>
-      </nav>
+        <div className="route-context">
+          <span><span className="context-dot" aria-hidden="true" />{source.kind === "demo" ? "Kurgusal demo verisi" : source.name}</span>
+          <span>Veri tarihi <b>{fmtDate(result.asOf)}</b></span>
+        </div>
+      </div>
+    </header>
+    <main className="wrap workspace" id="main" tabIndex={-1}>
+        <section className="calls" id="aramalar" aria-label="Arama listesi" ref={callsRef} tabIndex={-1}>
+          <div className="section-heading">
+            <div><p className="eyebrow">01 / ARAMA LİSTESİ</p><h2>Bugün kimi aramalı?</h2></div>
+            <a className="text-link" href="#brifing">Brifinge geç <ArrowIcon /></a>
+          </div>
+          {source.kind === "upload" && <p className="sub">Kaynak: {source.name} · Veri tarihi: {fmtDate(result.asOf)}</p>}
+      {source.kind === "upload" && source.warnings.length > 0 && (
+        <div className="alert warn" role="status">
+          {source.warnings.map((w, i) => (
+            <div key={i}>{w.message}</div>
+          ))}
+        </div>
+      )}
+          <p className="sub">
+            {fmtInt(callList.length)} müşteri: {fmtInt(callList.filter((c) => c.priority === 3).length)} yüksek, {fmtInt(callList.filter((c) => c.priority === 2).length)} orta,{" "}
+            {fmtInt(callList.filter((c) => c.priority < 2).length)} düşük öncelik. Önceliğe ve müşterinin değerine göre sıralı; her önerinin gerekçesi yanında.
+          </p>
+          <div className="call-cards">
+          {callList.length === 0 && <div className="call empty">Şu an aksiyon gerektiren müşteri yok.</div>}
+          {visibleCalls.map((c) => {
+            const cust = result.customers.find((x) => x.id === c.customerId);
+            return (
+              <article key={c.customerId} className="call">
+                <div className="call-head">
+                  <div className="call-main">
+                    <h3 className="call-name">{c.customerName}</h3>
+                  </div>
+                  <div className="call-side">
+                    <span className={`prio p${c.priority}`}>{PRIORITY_LABEL[c.priority]}</span>
+                  </div>
+                </div>
+                <p className="call-reason"><span className="field-label">Neden şimdi?</span>{c.reasons[0].reason}</p>
+                <div className="next"><ArrowIcon /> {c.reasons[0].nextAction}</div>
+                {c.reasons.length > 1 && <div className="more">Ayrıca: {c.reasons.slice(1).map((r) => r.reason).join(" · ")}</div>}
+                <div className="call-foot">
+                  <div className="call-meta"><span className="chip">{SEGMENTS[c.segmentKey]?.label}</span><span>{unit(cust.monetary)} · son alım {fmtRecency(cust.recency_days)}</span></div>
+                  <Sparkline values={cust.monthly} />
+                </div>
+              </article>
+            );
+          })}
+          </div>
+          {callList.length > 6 && (
+            <button className="btn show-calls" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Daha az göster" : `Tümünü göster (${callList.length})`}
+            </button>
+          )}
+        </section>
 
-      <header className="hero">
-        <h1>Bugün önce kimi aramalısınız?</h1>
-        <p>
-          Satış verisini okur, müşterileri RFM ile segmentlere ayırır, düşüşteki ve sessizleşen müşterileri işaretler ve her biri için gerekçesiyle bir sonraki adımı önerir. Aşağıdaki
-          ekran gerçekten hesaplanıyor: kendi Excel veya CSV dosyanızı yükleyip ya da tabloyu yapıştırıp deneyebilirsiniz.
+      <section className="overview" aria-label="Özet">
+        <div className="section-heading"><div><p className="eyebrow">02 / GENEL GÖRÜNÜM</p><h2>Listenin arkasındaki tablo</h2></div><span className="sub">Veri tarihi: {fmtDate(result.asOf)}</span></div>
+        <div className="kpis">
+        <div className="kpi">
+          <small>Müşteri</small>
+          <div className="v">{fmtInt(k.accounts)}</div>
+          <div className="s">son kayıt: {fmtDate(result.asOf)}</div>
+        </div>
+        <div className="kpi">
+          <small>{result.basis === "revenue" ? "Toplam ciro" : "Toplam adet"}</small>
+          <div className="v">{unit(k.total)}</div>
+          <div className="s">dosyadaki tüm dönem</div>
+        </div>
+        <div className="kpi alertish">
+          <small>Bugün aranacak</small>
+          <div className="v">{fmtInt(k.highPriority)}</div>
+          <div className="s">yüksek öncelikli · listede toplam {fmtInt(callList.length)}</div>
+        </div>
+        <div className="kpi">
+          <small>Risk altındaki {result.basis === "revenue" ? "ciro" : "hacim"}</small>
+          <div className="v">%{Math.round(k.atRiskShare * 100)}</div>
+          <div className="s">{unit(k.atRiskValue)} · sessiz veya düşüşte</div>
+        </div>
+        <div className="kpi">
+          <small>Ciroyu taşıyanlar</small>
+          <div className="v">{fmtInt(k.paretoCount)}</div>
+          <div className="s">müşteri toplamın %80'ini yapıyor</div>
+        </div>
+        </div>
+      </section>
+
+      <section className="brief" id="brifing" aria-label="Sabah brifingi önizlemesi">
+        <div className="brief-head">
+          <div>
+            <p className="eyebrow">03 / GÖRÜŞMEYE HAZIRLIK</p><h2>Sabah brifingi önizlemesi</h2>
+            <p className="sub" style={{ margin: 0 }}>
+              Hesaplanan veriden, sabit şablonla hazırlanır. Yapay zekâ kullanılmaz. Kopyalayın, indirin veya WhatsApp'ta açın; hiçbir mesaj otomatik gönderilmez.
+            </p>
+          </div>
+          <div className="actions-row">
+            <span className={`verification ${briefing.check.ok ? "okchip" : "badchip"}`} title="Metin, hesaplanan brifingle müşteri ve olgu sırası korunarak eşleşiyor mu?">
+              {briefing.check.ok ? "✓ Tüm rakamlar veriden" : `Doğrulanmayan metin: ${briefing.check.unknown.join(", ")}`}
+            </span>
+            <button className="btn" onClick={copyBriefing} disabled={!briefing.check.ok}>
+              {copied || "Metni kopyala"}
+            </button>
+            <button className="btn" onClick={() => sendBriefing("whatsapp")} disabled={!briefing.check.ok} aria-describedby="wa-note">
+              WhatsApp'ta aç
+            </button>
+            <button className="btn" onClick={() => sendBriefing("file")} disabled={!briefing.check.ok}>
+              .txt indir
+            </button>
+          </div>
+        </div>
+        <p className="note share-note" id="wa-note">
+          <b>WhatsApp'ta aç:</b> brifing metninin tamamı (müşteri adları ve rakamlar dahil) bağlantı içinde WhatsApp'a aktarılır. Mesaj kendiliğinden gitmez; alıcıyı seçip
+          gönderen sizsiniz. Kopyala ve .txt indir ise metni bilgisayarınızdan çıkarmaz.
         </p>
-      </header>
-    </div>
-    </div>
+        <pre className="brief-text" tabIndex={0} aria-label="Brifing metni">{briefing.text}</pre>
+      </section>
 
-    <div className="wrap">
-
-      <section className="source" aria-label="Veri kaynağı">
-        <div className="meta">
+      <section className="source" id="veri" aria-label="Veri kaynağı">
+        <div className="source-title"><p className="eyebrow">04 / KENDİ VERİNİZ</p><h2>Sırayı kendi verinizle görün</h2></div>
+        <div className="meta" role="status">
           <b>{source.kind === "demo" ? "Kurgusal demo verisi" : source.name}</b> · {fmtInt(result.kpis.accounts)} müşteri · {fmtInt(result.rowCount)} satır · analiz tarihi{" "}
           {fmtDate(result.asOf)}
           {source.locale && <> · sayı biçimi {LOCALES[source.locale]}</>}
@@ -308,12 +432,14 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {error && <div className="alert err">{error}</div>}
+      <div className="import-flow" ref={importRef} tabIndex={-1} aria-label="İçe aktarma işlemi">
+      {error && <div className="alert err" role="alert">{error}</div>}
       {paste !== null && (
         <section className="mapping">
           <h3>Excel'den yapıştır</h3>
           <div className="sub">Excel'de, ERP'de ya da BI ekranında tabloyu başlık satırıyla birlikte seçip kopyalayın (Ctrl+C), aşağıya yapıştırın (Ctrl+V).</div>
-          <textarea className="paste" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={"Cari Kodu\tCari Ünvanı\tFatura Tarihi\tMiktar\tNet Tutar\n..."} spellCheck={false} />
+          <label className="field-label" htmlFor="paste-table">Başlıklarıyla birlikte tablo</label>
+          <textarea id="paste-table" className="paste" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={"Cari Kodu\tCari Ünvanı\tFatura Tarihi\tMiktar\tNet Tutar\n..."} spellCheck={false} />
           <div className="actions-row" style={{ marginTop: 10 }}>
             <button className="btn primary" disabled={!paste.trim()} onClick={onPasteSubmit}>
               Analiz et
@@ -323,13 +449,6 @@ export default function Dashboard() {
             </button>
           </div>
         </section>
-      )}
-      {source.kind === "upload" && source.warnings.length > 0 && (
-        <div className="alert warn">
-          {source.warnings.map((w, i) => (
-            <div key={i}>{w.message}</div>
-          ))}
-        </div>
       )}
 
       {pending && (
@@ -343,7 +462,7 @@ export default function Dashboard() {
               : `“${pending.name}” için seçili eşleştirme aşağıda. Değiştirip tekrar analiz edebilirsiniz.`}
           </div>
           {pending.check?.errors.length > 0 && (
-            <div className="alert err" style={{ marginTop: 12 }}>
+            <div className="alert err" role="alert" style={{ marginTop: 12 }}>
               <b>{fmtInt(pending.check.errorCount)} hata</b>
               {pending.check.errorCount > pending.check.errors.length && <> (ilk {pending.check.errors.length} tanesi)</>}
               <ul className="errlist">
@@ -398,79 +517,15 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="kpis" aria-label="Özet">
-        <div className="kpi">
-          <small>Müşteri</small>
-          <div className="v">{fmtInt(k.accounts)}</div>
-          <div className="s">son kayıt: {fmtDate(result.asOf)}</div>
-        </div>
-        <div className="kpi">
-          <small>{result.basis === "revenue" ? "Toplam ciro" : "Toplam adet"}</small>
-          <div className="v">{unit(k.total)}</div>
-          <div className="s">dosyadaki tüm dönem</div>
-        </div>
-        <div className="kpi alertish">
-          <small>Bugün aranacak</small>
-          <div className="v">{fmtInt(k.highPriority)}</div>
-          <div className="s">yüksek öncelikli · listede toplam {fmtInt(callList.length)}</div>
-        </div>
-        <div className="kpi">
-          <small>Risk altındaki {result.basis === "revenue" ? "ciro" : "hacim"}</small>
-          <div className="v">%{Math.round(k.atRiskShare * 100)}</div>
-          <div className="s">{unit(k.atRiskValue)} · sessiz veya düşüşte</div>
-        </div>
-        <div className="kpi">
-          <small>Ciroyu taşıyanlar</small>
-          <div className="v">{fmtInt(k.paretoCount)}</div>
-          <div className="s">müşteri toplamın %80'ini yapıyor</div>
-        </div>
-      </section>
+      </div>
 
-      <div className="grid">
-        <section className="calls" aria-label="Arama listesi">
-          <h2>Bugün kimi aramalı?</h2>
-          <p className="sub">
-            {fmtInt(callList.length)} müşteri: {fmtInt(callList.filter((c) => c.priority === 3).length)} yüksek, {fmtInt(callList.filter((c) => c.priority === 2).length)} orta,{" "}
-            {fmtInt(callList.filter((c) => c.priority < 2).length)} düşük öncelik. Önceliğe ve müşterinin değerine göre sıralı; her önerinin gerekçesi yanında.
-          </p>
-          {callList.length === 0 && <div className="call empty">Şu an aksiyon gerektiren müşteri yok.</div>}
-          {visibleCalls.map((c) => {
-            const cust = result.customers.find((x) => x.id === c.customerId);
-            return (
-              <article key={c.customerId} className="call">
-                <div className="call-head">
-                  <div className="call-main">
-                    <div className="call-name">{c.customerName}</div>
-                    <div className="call-meta">
-                      <span className="chip">{SEGMENTS[c.segmentKey]?.label}</span> · {unit(cust.monetary)} · son alım {fmtRecency(cust.recency_days)}
-                    </div>
-                  </div>
-                  <div className="call-side">
-                    <span className={`prio p${c.priority}`}>{PRIORITY_LABEL[c.priority]}</span>
-                    <div style={{ marginTop: 6 }}>
-                      <Sparkline values={cust.monthly} />
-                    </div>
-                  </div>
-                </div>
-                <p>{c.reasons[0].reason}</p>
-                <div className="next">→ {c.reasons[0].nextAction}</div>
-                {c.reasons.length > 1 && <div className="more">Ayrıca: {c.reasons.slice(1).map((r) => r.reason).join(" · ")}</div>}
-              </article>
-            );
-          })}
-          {callList.length > 6 && (
-            <button className="btn" onClick={() => setShowAll((v) => !v)}>
-              {showAll ? "Daha az göster" : `Tümünü göster (${callList.length})`}
-            </button>
-          )}
-        </section>
-
+      <div className="customer-details" id="detaylar">
         <aside aria-label="Segmentler">
-          <h2>Segmentler</h2>
+          <p className="eyebrow">05 / DETAYLAR</p><h2>Segmentler</h2>
           <p className="sub">Bir segmente tıklayın, aşağıdaki tablo filtrelensin.</p>
           <div className="panel">
             {Object.entries(SEGMENTS).map(([key, s]) => (
-              <button key={key} className={`seg ${segment === key ? "active" : ""}`} onClick={() => setSegment(segment === key ? null : key)} title={s.hint}>
+              <button key={key} className={`seg ${segment === key ? "active" : ""}`} aria-pressed={segment === key} aria-controls="customer-table" onClick={() => setSegment(segment === key ? null : key)} title={s.hint}>
                 <span>{s.label}</span>
                 <span className="bar">
                   <i style={{ width: `${(result.segmentCounts[key] / maxSeg) * 100}%` }} />
@@ -481,39 +536,6 @@ export default function Dashboard() {
             <div className="seg-hint">{segment ? SEGMENTS[segment].hint : "Segment, müşterinin yakınlık (R), sıklık (F) ve ciro (M) puanlarından türetilir."}</div>
           </div>
         </aside>
-      </div>
-
-      <section className="brief" aria-label="Sabah brifingi önizlemesi">
-        <div className="table-head" style={{ marginTop: 30 }}>
-          <div>
-            <h2>Sabah brifingi önizlemesi</h2>
-            <p className="sub" style={{ margin: 0 }}>
-              Yukarıdaki hesaplardan şablonla üretilir. Yapay zekâ kullanılmaz; fiyat, stok ya da kampanya vaadi içermez. Otomatik gönderim yok: kopyalayabilir, .txt olarak
-              indirebilir ya da WhatsApp'ta açabilirsiniz.
-            </p>
-          </div>
-          <div className="actions-row">
-            <span className={`chip ${briefing.check.ok ? "okchip" : "badchip"}`} title="Metin, hesaplanan brifingle müşteri ve olgu sırası korunarak eşleşiyor mu?">
-              {briefing.check.ok ? "✓ Tüm rakamlar veriden" : `Doğrulanmayan metin: ${briefing.check.unknown.join(", ")}`}
-            </span>
-            <button className="btn" onClick={copyBriefing} disabled={!briefing.check.ok}>
-              {copied || "Metni kopyala"}
-            </button>
-            <button className="btn" onClick={() => sendBriefing("whatsapp")} disabled={!briefing.check.ok} aria-describedby="wa-note">
-              WhatsApp'ta aç
-            </button>
-            <button className="btn" onClick={() => sendBriefing("file")} disabled={!briefing.check.ok}>
-              .txt indir
-            </button>
-          </div>
-        </div>
-        <p className="note share-note" id="wa-note">
-          <b>WhatsApp'ta aç:</b> brifing metninin tamamı (müşteri adları ve rakamlar dahil) bağlantı içinde WhatsApp'a aktarılır. Mesaj kendiliğinden gitmez; alıcıyı seçip
-          gönderen sizsiniz. Kopyala ve .txt indir ise metni bilgisayarınızdan çıkarmaz.
-        </p>
-        <pre className="brief-text" tabIndex={0} aria-label="Brifing metni">{briefing.text}</pre>
-      </section>
-
       <div className="table-head">
         <div>
           <h2>Müşteriler {segment && <span className="chip">{SEGMENTS[segment].label}</span>}</h2>
@@ -523,8 +545,9 @@ export default function Dashboard() {
         </div>
         <input className="search" placeholder="Müşteri ara…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Müşteri ara" />
       </div>
-      <div className="table-wrap">
-        <table>
+      <div className="table-wrap" role="region" aria-label="Müşteri detay tablosu" tabIndex={0}>
+        <table id="customer-table">
+          <caption className="sr-only">Müşterilerin segmentleri, RFM puanları ve alım geçmişi</caption>
           <thead>
             <tr>
               {th("name", "Müşteri")}
@@ -538,6 +561,7 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
+            {tableRows.length === 0 && <tr><td colSpan={8}>Bu arama veya segmentte müşteri bulunamadı.</td></tr>}
             {tableRows.map((c) => (
               <tr key={c.id}>
                 <td>
@@ -565,6 +589,8 @@ export default function Dashboard() {
         </table>
       </div>
 
+      </div>
+
       <details className="how">
         <summary>Nasıl hesaplanıyor?</summary>
         <ul>
@@ -588,11 +614,11 @@ export default function Dashboard() {
 
       <footer>
         <span>
-          SahaIQ · Geliştiren: Uğurhan Horasanlı · <a href="mailto:info@sahaiq.app">info@sahaiq.app</a> · <a href="https://sahaiq.app/gizlilik.html">Gizlilik</a>
+          SahaIQ · Geliştiren: Uğurhan Horasanlı · <a href="mailto:info@sahaiq.app">info@sahaiq.app</a> · <a href="https://sahaiq.app/gizlilik.html">Gizlilik</a> · <a href="https://github.com/horasanliugurhan-beep/sahaiq">Kaynak kod</a>
         </span>
-        <span>Demo verisindeki tüm firma, marka ve rakamlar kurgusaldır.</span>
+        <span>Kişisel, ticari olmayan bir proje.<br />Demo verisindeki tüm firma, marka ve rakamlar kurgusaldır.</span>
       </footer>
-    </div>
+    </main>
     </>
   );
 }

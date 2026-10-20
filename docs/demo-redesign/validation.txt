@@ -1,0 +1,249 @@
+$ npm test
+> sahaiq@0.1.0 test
+> node --test test/*.test.mjs
+
+✔ CSV parser detects semicolon delimiter (1.570973ms)
+✔ numbers need an explicit format and never guess silently (0.742323ms)
+✔ locale guess (0.41403ms)
+✔ dates are strict (0.392147ms)
+✔ auto-mapping recognises Turkish ERP headers (0.947445ms)
+✔ bad rows block the analysis and are reported with line numbers (1.553368ms)
+✔ duplicates and returns produce warnings, not silent changes (1.044738ms)
+✔ CSV parser rejects broken structure instead of guessing (0.369995ms)
+✔ aggregation computes recency, frequency, monetary and trend (0.581927ms)
+✔ a return does not count as a fresh purchase (0.259933ms)
+✔ blank amounts switch the analysis to units instead of counting as zero (0.188507ms)
+✔ falls back to quantity when there is no revenue column (0.1359ms)
+✔ sample data is deterministic and produces a meaningful call list (13.168694ms)
+✔ sample CSV survives a full round trip through import (24.377724ms)
+✔ invalid briefing never calls clipboard, even if an earlier badge said valid (13.401542ms)
+✔ unsafe imported source reference also blocks the copy handler independently (3.128366ms)
+✔ valid briefing is copied exactly once and keeps success/reset feedback (2.591957ms)
+✔ clipboard permission failure retains the manual-copy feedback for valid text (2.535053ms)
+✔ copy button is disabled when the briefing guard fails (0.241976ms)
+✔ #6 complete fact preserves million scale (10.453451ms)
+✔ #6 complete fact preserves percent sign (1.401694ms)
+✔ #6 complete fact preserves percent sign omitted (0.386489ms)
+✔ #6 complete fact preserves full date month (0.303817ms)
+✔ #6 complete fact preserves full date reordered (0.273793ms)
+✔ #6 complete fact preserves money becomes count (0.27209ms)
+✔ #6 complete fact preserves money currency (0.267825ms)
+✔ #6 complete fact preserves account count becomes units (0.228015ms)
+✔ #6 complete fact preserves relation reversed (0.313892ms)
+✔ #6 complete fact preserves relation negated (0.634224ms)
+✔ #6 complete fact preserves window relation reversed (0.280693ms)
+✔ #6 reported standalone attacks and same digits with different meaning fail (0.948516ms)
+✔ #6 Unicode numeric forms and invisible direction changes are not silently ignored (1.280135ms)
+✔ #6 a true fact cannot be moved to another customer (0.641315ms)
+✔ #6 generated facts cannot be reused as a different assertion or duplicated (0.421361ms)
+✔ #7 only the exact generated ordinal/name/segment header is a list marker (0.57735ms)
+✔ #5b numeric customer and product names remain bound to their exact literal slots (0.411526ms)
+✔ #5b a numeric-only literal is never erased from other facts (0.997859ms)
+✔ #5b guard independently rejects the reported multiline customer_name injection (0.268325ms)
+✔ #5b control or layout characters in customer_name fail even when expected text contains them (5.379711ms)
+✔ #5b guard independently rejects the reported multiline product injection (0.674183ms)
+✔ #5b control or layout characters in product fail even when expected text contains them (6.24175ms)
+✔ dealer openers have no figures, even when those figures are valid facts (0.646522ms)
+✔ the fixed disclaimer cannot excuse injected promises, with or without digits (1.010197ms)
+✔ fail-closed contract rejects empty, incomplete and unsupported free-form rewrites (0.252041ms)
+✔ generated revenue, quantity, empty, capped, stale and non-default window briefings pass (6.760865ms)
+✔ legitimate Unicode digits in source literals are accepted only in their exact slots (0.246663ms)
+✔ deterministic mutation check rejects every changed digit in the generated document (18.532146ms)
+✔ malformed briefing data fails closed without throwing (0.469532ms)
+✔ customer headers and complete blocks cannot be removed, duplicated or reordered (0.35983ms)
+✔ source-record compatibility rejects empty products and unbound product/name combinations (0.364677ms)
+✔ only ASCII indentation, blank lines and CRLF are presentation normalization (0.329385ms)
+✔ blank source customer names fail without trimming legitimate literal contents (0.435311ms)
+✔ sparse facts and summaries cannot silently omit required reference content (0.245892ms)
+✔ a verified briefing gets a WhatsApp link that round-trips the exact text (2.039964ms)
+✔ an altered briefing gets no share target at all (0.483562ms)
+✔ briefing lists the highest-priority customers first and shows the data date (1.621408ms)
+✔ stale data is labelled (0.371347ms)
+✔ the generated text passes its own number guard (1.990681ms)
+✔ invented figures, sizes or prices are caught (0.974315ms)
+✔ product names with digits are allowed when they come from the data (0.413919ms)
+✔ no offers, prices or campaigns and no figures in dealer openers (0.442061ms)
+✔ openers vary within a section (0.194426ms)
+✔ RFM scores every demo account (0.929308ms)
+✔ decline creates action (0.337687ms)
+✔ #10 tr-TR quantity: parentheses cannot contain another sign (1.473429ms)
+✔ #10 tr-TR money: parentheses cannot contain another sign (0.23754ms)
+✔ #10 tr-TR: conflicting signs block import with source row numbers (2.375237ms)
+✔ #10 en-US quantity: parentheses cannot contain another sign (0.349195ms)
+✔ #10 en-US money: parentheses cannot contain another sign (0.18992ms)
+✔ #10 en-US: conflicting signs block import with source row numbers (0.706911ms)
+✔ #3 one return: no positive purchase has no recency, RFM or sales action (1.814942ms)
+✔ #3 zero quantity: no positive purchase has no recency, RFM or sales action (0.520416ms)
+✔ #3 multiple return-only accounts: no positive purchase has no recency, RFM or sales action (0.722984ms)
+✔ #3 accounts without purchases do not alter purchasers' quintiles (1.111396ms)
+✔ #3 a mixed cohort keeps all buyer quintiles unchanged (1.780472ms)
+✔ #3 dashboard recency distinguishes no purchases from today's purchase (0.140657ms)
+✔ #3 non-purchase adjustments cannot trigger a sales decline action (0.253523ms)
+✔ #4 recent positive sale with net zero value is not called no purchase (1.014343ms)
+✔ #4 recent positive sale with net negative value is not called no purchase (0.454379ms)
+✔ #4 a genuinely silent recent window keeps the no-purchase explanation (7.450659ms)
+✔ #4 a legacy trend without purchase counts must not assert no purchases (0.123241ms)
+✔ #4 custom trend windows use the same period in the action and briefing facts (0.409143ms)
+✔ #4 purchase-day counts respect both window boundaries and deduplicate days (0.723486ms)
+✔ #4 quantity-basis same-day sale and return keep the positive-purchase evidence (0.361432ms)
+✔ #4 returns that leave positive net sales retain the percentage explanation (0.255967ms)
+✔ numeric Excel money rejects non-finite and unsafe cents, with source rows (3.568684ms)
+✔ largest safe numeric cent values and normal returns remain valid (0.712399ms)
+✔ rounded Excel money carries a per-cell warning and a counted source-row summary (0.429142ms)
+✔ rounding noise at or below the K1 threshold does not create a warning (0.440459ms)
+✔ numeric quantities must be safe integers and are never rounded (0.344487ms)
+✔ CSV, TSV and textual Excel amounts still reject more than two decimals (1.171055ms)
+✔ customer_name rejects every control code and Unicode line separator before trimming (2.577144ms)
+✔ customer_name blocks the issue #5 multiline CSV payload without silently dropping it (0.413779ms)
+✔ product rejects every control code and Unicode line separator before trimming (2.589212ms)
+✔ product blocks the issue #5 multiline CSV payload without silently dropping it (0.321243ms)
+✔ single-line Turkish names, product codes and optional blanks are preserved (0.186544ms)
+✔ rounding summary coexists with duplicate, missing-money and return warnings (0.327572ms)
+✔ real synthetic XLSX file uses numeric cells, physical rows and visible warning messages (20.080937ms)
+✔ real XLSX invalid money, quantity, multiline fields and text money fail with physical rows (6.366705ms)
+✔ PR #16 customer_name: invisible format characters fail at import with physical source rows (7.869477ms)
+✔ PR #16 product: invisible format characters fail at import with physical source rows (5.930252ms)
+✔ CSV parser handles quoted comma (1.050327ms)
+✔ mapping validation requires core fields (0.618061ms)
+✔ normalizer rejects incomplete rows (1.50087ms)
+✔ tool contract is stable: names, read-only annotations, strict schemas (1.553357ms)
+✔ initialize negotiates a known protocol version and declares tools only (0.234986ms)
+✔ JSON-RPC edge cases (0.234315ms)
+✔ tool list and schemas match the committed contract exactly (0.417675ms)
+✔ KPIs equal the demo exactly (3.32796ms)
+✔ call list keeps the demo order, reasons and priorities (0.604551ms)
+✔ customer, segment and timeseries totals reconcile to the KPI total (2.442116ms)
+✔ sorting by change puts the steepest drops first and missing trends last (0.440038ms)
+✔ money text matches kuruş exactly (0.198472ms)
+✔ bad input is a tool error with a plain message, never a crash or a stack (0.648665ms)
+✔ HTTP: POST JSON works, everything else is refused (7.319096ms)
+✔ tools are pure: repeated calls give identical results (1.380021ms)
+✔ Origin: absent is allowed (server-to-server), allowlisted is allowed, anything else is 403 (0.825656ms)
+✔ MCP-Protocol-Version header: supported or missing is fine, unknown is 400 (0.505554ms)
+✔ local server survives a client that disconnects mid-request (125.753ms)
+✔ QIX URL is tenant scoped (0.897902ms)
+✔ QIX auth stays in header (0.151363ms)
+✔ hypercube definition is generic (0.163862ms)
+✔ QIX cells normalize (0.628646ms)
+✔ Qlik rejects missing config (0.753579ms)
+✔ Qlik sends bearer token (0.333351ms)
+✔ Qlik app metadata (0.363886ms)
+✔ ERP-style headers map without manual work, preferring net amount and product name (1.787122ms)
+✔ ambiguous headers are left to the user (0.20334ms)
+✔ header signature ignores order and spelling variants (0.131193ms)
+✔ Excel sheet with a title block, real dates and numbers becomes a valid table (2.381477ms)
+✔ Excel totals row is caught instead of being counted as a customer (0.433348ms)
+✔ values under an unnamed column are rejected (0.471425ms)
+✔ the sales sheet is picked over a summary sheet (0.276728ms)
+✔ a table pasted from Excel (tab separated) runs end to end (2.545888ms)
+✔ status disabled by default without network (17.387912ms)
+✔ unauthenticated status cannot touch Qlik (0.431856ms)
+✔ wrong status token rejected (0.652821ms)
+✔ weak configured token rejected (0.408771ms)
+✔ oversized authorization header rejected (0.514167ms)
+✔ missing app configuration is not passed (0.657198ms)
+✔ HTTP auth failure is safely reported (1.097516ms)
+✔ network exceptions cannot expose secrets (0.652631ms)
+✔ metadata success explicitly does not verify business data (0.814059ms)
+✔ app access failure is not connection success (0.754932ms)
+✔ unsafe tenant rejected before network: http://demo.eu.qlikcloud.com (1.015015ms)
+✔ unsafe tenant rejected before network: https://evil.example (0.09454ms)
+✔ unsafe tenant rejected before network: https://demo.qlikcloud.com.evil.example (0.139646ms)
+✔ unsafe tenant rejected before network: https://name:pass@demo.qlikcloud.com (0.097233ms)
+✔ unsafe tenant rejected before network: https://demo.qlikcloud.com/path (0.085286ms)
+✔ unsafe tenant rejected before network: https://demo.qlikcloud.com?token=test (0.060459ms)
+✔ unsafe tenant rejected before network: https://demo.qlikcloud.com:444 (0.053238ms)
+✔ unexpected identity payload is not authenticated (0.203921ms)
+✔ unexpected app payload is rejected (0.316075ms)
+✔ official Qlik attributes response is normalized (0.19009ms)
+ℹ tests 154
+ℹ suites 0
+ℹ pass 154
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 504.409948
+[exit 0]
+
+$ NEXT_TELEMETRY_DISABLED=1 npm run build
+> sahaiq@0.1.0 build
+> next build
+
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.mjs took 10ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 157ms
+  Running TypeScript ...
+  Finished TypeScript in 1ms ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 111ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ƒ /api/qlik
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+[exit 0]
+
+$ NEXT_TELEMETRY_DISABLED=1 npm run build:static
+> sahaiq@0.1.0 build:static
+> node scripts/build-static.mjs
+
+▲ Next.js 16.4.0 (Turbopack)
+✓ Running next.config.mjs took 10ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 957ms
+  Running TypeScript ...
+  Finished TypeScript in 1ms ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 452ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+[exit 0]
+
+$ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e
+> sahaiq@0.1.0 test:e2e
+> playwright test
+
+
+Running 17 tests using 1 worker
+
+(node:7820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/demo.spec.mjs:34:1 › demo loads with the fictional dataset and a verified briefing (412ms)
+  ✓   2 [chromium] › e2e/demo.spec.mjs:44:1 › CSV upload is analysed in the browser (440ms)
+  ✓   3 [chromium] › e2e/demo.spec.mjs:53:1 › pasted table from Excel/ERP is analysed (550ms)
+  ✓   4 [chromium] › e2e/demo.spec.mjs:66:1 › Excel workbook is read, with a rounding warning (464ms)
+  ✓   5 [chromium] › e2e/demo.spec.mjs:74:1 › bad rows block the analysis and are shown with row numbers (350ms)
+  ✓   6 [chromium] › e2e/demo.spec.mjs:84:1 › sortable headers work from the keyboard (373ms)
+  ✓   7 [chromium] › e2e/demo.spec.mjs:95:1 › no horizontal overflow at phone width (487ms)
+  ✓   8 [chromium] › e2e/demo.spec.mjs:107:1 › no accessibility violations (2.1s)
+  ✓   9 [chromium] › e2e/demo.spec.mjs:118:1 › verified briefing opens in WhatsApp with the exact text and saves as .txt (688ms)
+  ✓  10 [chromium] › e2e/demo.spec.mjs:149:1 › demo names are visibly fictional and list counts are explained (402ms)
+  ✓  11 [chromium] › e2e/demo.spec.mjs:160:3 › route precedes summary and details, first decision fits the viewport (390px) (1.7s)
+  ✓  12 [chromium] › e2e/demo.spec.mjs:160:3 › route precedes summary and details, first decision fits the viewport (1440px) (1.8s)
+  ✓  13 [chromium] › e2e/demo.spec.mjs:189:1 › all 29 call cards preserve the computed order, reasons and priority counts (2.6s)
+  ✓  14 [chromium] › e2e/demo.spec.mjs:233:1 › manual mapping is keyboard accessible, saved locally and reuses the same validation (3.3s)
+  ✓  15 [chromium] › e2e/demo.spec.mjs:298:1 › segment toggles and name/code search combine without changing the call list (598ms)
+  ✓  16 [chromium] › e2e/demo.spec.mjs:328:1 › verified briefing is copied verbatim and demo can be restored after import (645ms)
+  ✓  17 [chromium] › e2e/demo.spec.mjs:350:1 › old imports show their source date and warning before the new call list (383ms)
+
+  17 passed (18.4s)
+[exit 0]
